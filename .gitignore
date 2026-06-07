@@ -30,3 +30,23 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# --- Secrets (NEVER commit) ---
+*.env
+.env*
+.twilio.env
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+keys.txt
+id_rsa*
+id_ed25519*
+*secret*
+*_secret*
+auth-providers.user.json
+
+# Salvage staging
+_salvage.tgz
+_quarantine/

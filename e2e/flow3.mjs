@@ -1,0 +1,24 @@
+import puppeteer from "puppeteer";
+const base="http://localhost:8080", NID="8267411072", PIN="111111";
+const b=await puppeteer.launch({headless:"new",args:["--no-sandbox","--disable-setuid-sandbox"]});
+const p=await b.newPage(); await p.setViewport({width:1280,height:1000});
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const shot=async t=>{await p.screenshot({path:`/work/${t}.png`,fullPage:true});console.log(`[shot ${t}] ${p.url().slice(0,95)}`);};
+const reactSet=(sel,val)=>p.evaluate((s,v)=>{const inp=document.querySelector(s);if(!inp)return "no-el";const setter=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,"value").set;setter.call(inp,v);inp.dispatchEvent(new Event("input",{bubbles:true}));inp.dispatchEvent(new Event("change",{bubbles:true}));return inp.value;},sel,val);
+await p.goto(base+"/",{waitUntil:"networkidle2",timeout:30000});
+await p.evaluate(()=>{[...document.querySelectorAll("button,a")].find(e=>/issuer/i.test(e.textContent))?.click()});
+await p.waitForNavigation({waitUntil:"networkidle2",timeout:20000}).catch(()=>{});
+await p.evaluate(()=>{[...document.querySelectorAll("button,a")].find(e=>/esignet/i.test(e.textContent))?.click()});
+await wait(6000); await shot("e1-factors");
+await p.evaluate(()=>document.querySelector("#login_with_pin")?.click());
+await wait(4000); await shot("e2-pinform");
+console.log("uin set:",await reactSet("#Pin_mosip-uin",NID));
+console.log("pin set:",await reactSet("#Pin_pin",PIN));
+await wait(900); await shot("e3-filled");
+await p.evaluate(()=>{const f=document.querySelector("#verify_form")||document;const btn=[...f.querySelectorAll("button")].find(b=>/login|submit|verify/i.test((b.textContent||"")+(b.value||"")));btn&&btn.click();});
+await wait(8000); await shot("e4-aftersubmit");
+for(let i=0;i<2;i++){await p.evaluate(()=>{[...document.querySelectorAll("button")].find(b=>/allow|proceed|authorize|consent|continue/i.test(b.textContent))?.click()});await wait(4000);}
+await shot("e5-final");
+console.log("FINAL URL:",p.url());
+console.log("BODY:",(await p.evaluate(()=>document.body.innerText)).replace(/\s+/g," ").slice(0,500));
+await b.close();

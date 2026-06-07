@@ -1,0 +1,23 @@
+# colombo-poc override — replaces the repo's dev override.
+# - published ghcr.io images (NO :local)
+# - postgres:14 (PG18 changed data-dir layout, breaks legacy mount)
+# - kafka/zookeeper pinned to 7.5.0 (cp-kafka:latest is KRaft-only; compose uses ZooKeeper mode)
+# - Node V2 services: dedicated DBs to avoid Prisma P3005 vs the Java registry schema
+services:
+  db:
+    image: postgres:14
+    volumes:
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+  identity:
+    environment:
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@db:5432/identity
+  credential-schema:
+    environment:
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@db:5432/credential_schema
+  credential:
+    environment:
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@db:5432/credential

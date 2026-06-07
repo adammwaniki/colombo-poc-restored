@@ -1,0 +1,127 @@
+{{define "content_auth"}}
+<section class="view active">
+  <div class="section-label"><span class="num">02</span><span class="caps">{{t "Authenticate" $.Lang}}</span></div>
+  <h1 class="page-title">{{t "Sign in to continue as" $.Lang}}<br><em>{{.Session.Role}}</em>.</h1>
+
+  <div class="auth-wrap">
+    <div class="auth-card">
+      {{with .Body}}
+      {{if .Providers}}
+        <p class="subtitle" style="margin-bottom:1.25rem">{{t "Pick an identity provider. The provider authenticates you and returns a session token the backend attaches to every adapter call." $.Lang}}</p>
+        <div class="provider-row">
+          {{range .Providers}}
+          <button class="provider-btn" type="button"
+                  hx-post="/auth/start" hx-vals='{"provider":"{{.ID}}"}'>
+            {{.Name}}<br><span class="caps">{{.Kind}}</span>
+          </button>
+          {{end}}
+        </div>
+
+        {{/* Runtime "add custom provider" form. Lives behind a <details>
+             so it doesn't crowd the picker for the common case. Honest
+             scoping: the only thing that goes in here is an OIDC server
+             with a working /.well-known/openid-configuration endpoint
+             (Keycloak, WSO2 IS, Auth0, Okta, Azure AD, Cognito, Authentik,
+             Zitadel, Dex, Ory Hydra, etc.). Plain OAuth2, SAML, and LDAP
+             servers don't expose discovery and will fail at submit with
+             a "could not parse provider config" toast — that's the right
+             error for the operator to see, not a silent half-broken sign-in.
+
+             Admin can hide this entire expansion via /admin/auth-providers
+             (the AllowAddProvider toggle). When .AllowAddProvider is
+             false, regular users see ONLY the provider tiles. */}}
+        {{if .AllowAddProvider}}
+        <details style="margin-top:1.5rem">
+          <summary class="caps" style="cursor:pointer;font-size:0.7rem;color:var(--ink-soft)">+ {{t "Add OIDC provider" $.Lang}}</summary>
+          <p style="font-size:0.78rem;color:var(--ink-mute);margin:0.75rem 0 1rem;font-style:italic">
+            {{t "OIDC only — server must serve /.well-known/openid-configuration. Plain OAuth2, SAML, and LDAP need a different integration." $.Lang}}
+          </p>
+          {{template "_oidc_provider_form" (dict "Action" "/auth/custom" "SubmitLabel" (t "Register & sign in" $.Lang))}}
+        </details>
+        {{end}}
+      {{else if .FirstRun}}
+        <p class="subtitle" style="margin-bottom:1.25rem">
+          <strong>{{t "First-run setup:" $.Lang}}</strong>
+          {{t "no identity providers are configured yet. Register your OIDC server below — it will be persisted to" $.Lang}}
+          <span class="mono" style="font-size:0.8em">config/auth-providers.user.json</span>
+          {{t "and survive subsequent ./deploy.sh runs." $.Lang}}
+        </p>
+        <p style="font-size:0.78rem;color:var(--ink-mute);margin:0 0 1rem;font-style:italic">
+          {{t "OIDC only — server must serve /.well-known/openid-configuration. Plain OAuth2, SAML, and LDAP need a different integration." $.Lang}}
+        </p>
+        {{template "_oidc_provider_form" (dict "Action" "/auth/custom" "SubmitLabel" (t "Register & continue" $.Lang))}}
+      {{else}}
+        <p class="subtitle" style="margin-bottom:1.25rem">
+          <strong>{{t "Demo mode:" $.Lang}}</strong> {{t "no identity providers are configured. Click below to continue." $.Lang}}
+        </p>
+        <form method="post" action="/auth">
+          <button class="btn" type="submit" style="width:100%">{{t "Continue without auth →" $.Lang}}</button>
+        </form>
+      {{end}}
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+{{/*
+  _oidc_provider_form is the shared "Add OIDC provider" form used by both
+  /auth (in-memory custom + first-run bootstrap) and /admin/auth-providers
+  (persisted add). Caller passes:
+    Action      — the URL the form posts to
+    SubmitLabel — the button text
+  Field names match the handler form parsers in handlers.go and
+  admin_auth_providers.go (display_name, issuer_url, client_id, etc.).
+*/}}
+{{define "_oidc_provider_form"}}
+<form method="post" action="{{.Action}}"
+      style="display:flex;flex-direction:column;gap:0.6rem">
+  <label style="display:flex;flex-direction:column;gap:0.25rem">
+    <span class="caps" style="font-size:0.65rem">Display name</span>
+    <input type="text" name="display_name" placeholder="My Keycloak" required
+           style="padding:0.4rem;border:1px solid var(--line);background:var(--bg);color:var(--ink)">
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.25rem">
+    <span class="caps" style="font-size:0.65rem">Issuer URL</span>
+    <input type="url" name="issuer_url" placeholder="https://idp.example.com/realms/foo" required
+           style="padding:0.4rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--mono)">
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.25rem">
+    <span class="caps" style="font-size:0.65rem">Client ID</span>
+    <input type="text" name="client_id" required
+           style="padding:0.4rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--mono)">
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.25rem">
+    <span class="caps" style="font-size:0.65rem">Client secret (optional)</span>
+    <input type="password" name="client_secret" autocomplete="off"
+           style="padding:0.4rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--mono)">
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.25rem">
+    <span class="caps" style="font-size:0.65rem">Client auth method</span>
+    <select name="client_auth_method" style="padding:0.4rem;border:1px solid var(--line);background:var(--bg);color:var(--ink)">
+      <option value="client_secret">client_secret (default)</option>
+      <option value="private_key_jwt">private_key_jwt (eSignet/MOSIP)</option>
+    </select>
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.25rem">
+    <span class="caps" style="font-size:0.65rem">Private key PEM (private_key_jwt only)</span>
+    <textarea name="private_key_pem" rows="4" placeholder="-----BEGIN PRIVATE KEY-----"
+              style="padding:0.4rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--mono)"></textarea>
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.25rem">
+    <span class="caps" style="font-size:0.65rem">Key ID / kid (private_key_jwt only)</span>
+    <input type="text" name="key_id"
+           style="padding:0.4rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--mono)">
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.25rem">
+    <span class="caps" style="font-size:0.65rem">Scopes (comma-separated, defaults to openid,profile,email)</span>
+    <input type="text" name="scopes" placeholder="openid,profile,email"
+           style="padding:0.4rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--mono)">
+  </label>
+  <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:var(--ink-soft)">
+    <input type="checkbox" name="insecure_skip_verify">
+    Skip TLS verification (self-signed certs only)
+  </label>
+  <button class="btn" type="submit" style="margin-top:0.4rem">{{.SubmitLabel}}</button>
+</form>
+{{end}}
