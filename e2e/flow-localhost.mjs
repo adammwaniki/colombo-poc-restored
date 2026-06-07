@@ -1,0 +1,22 @@
+import puppeteer from "puppeteer";
+const base="http://localhost:8080", NID="80000002", PIN="100001";
+const b=await puppeteer.launch({headless:"new",args:["--no-sandbox","--disable-setuid-sandbox"]});
+const p=await b.newPage(); await p.setViewport({width:1280,height:1000});
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const shot=async t=>{await p.screenshot({path:`/work/${t}.png`,fullPage:true});};
+async function clickText(sel,txt){for(const e of await p.$$(sel)){const t=(await p.evaluate(n=>n.innerText||n.value||"",e)).trim();if(t&&t.toLowerCase().includes(txt.toLowerCase())){await e.click();return t.slice(0,30);}}return null;}
+const reactSet=(sel,val)=>p.evaluate((s,v)=>{const inp=document.querySelector(s);if(!inp)return;const setter=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,"value").set;setter.call(inp,v);inp.dispatchEvent(new Event("input",{bubbles:true}));inp.dispatchEvent(new Event("change",{bubbles:true}));},sel,val);
+await p.goto(base+"/",{waitUntil:"networkidle2",timeout:30000});
+console.log("role:",await clickText("button,a","Issuer"));
+await p.waitForNavigation({waitUntil:"networkidle2",timeout:20000}).catch(()=>{});
+console.log("tile:",await clickText("button,a","eSignet"));
+await wait(7000); await shot("el-1-esignet"); console.log("URL@esignet:",p.url().split("?")[0]);
+await p.evaluate(()=>document.querySelector("#login_with_pin")?.click()); await wait(4000);
+await reactSet("#Pin_mosip-uin",NID); await reactSet("#Pin_pin",PIN); await wait(1000); await shot("el-2-pinform");
+console.log("submit:",await clickText("button","Login"));
+await wait(9000); await shot("el-3-consent"); console.log("URL after pin:",p.url().split("?")[0]);
+console.log("allow:",await clickText("button","Allow")||await clickText("button","Proceed")||await clickText("button","Authorize")||await clickText("button","Continue"));
+await wait(9000); await shot("el-4-final");
+console.log("FINAL URL:",p.url().split("#")[0].slice(0,120));
+console.log("BODY:",(await p.evaluate(()=>document.body.innerText)).replace(/\s+/g," ").slice(0,300));
+await b.close();

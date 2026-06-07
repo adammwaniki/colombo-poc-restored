@@ -1,0 +1,10 @@
+[Unit]
+Description=Restrict external access to Docker published ports
+After=docker.service
+Requires=docker.service
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/docker-firewall.sh
+[Install]
+WantedBy=multi-user.target

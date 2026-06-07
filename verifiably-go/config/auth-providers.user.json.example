@@ -4,12 +4,23 @@
     "type": "oidc",
     "displayName": "eSignet (Sunbird register of record)",
     "kind": "OIDC",
-    "issuerUrl": "http://<HOST>:3005/v1/esignet/oidc",
-    "publicIssuerUrl": "http://<HOST>:3005",
+    "issuerUrl": "http://injiweb-esignet:8088/v1/esignet/oidc",
+    "publicIssuerUrl": "http://localhost:3005",
     "clientId": "verifiably",
     "clientAuthMethod": "private_key_jwt",
-    "privateKeyPem": "-----BEGIN PRIVATE KEY-----\n<<< eSignet client RSA private key — generate fresh, DO NOT COMMIT >>>\n-----END PRIVATE KEY-----\n",
-    "keyId": "<kid matching the JWK registered on the eSignet OIDC client>",
+    "privateKeyPem": "-----BEGIN PRIVATE KEY-----\n<<< eSignet client RSA private key — generate fresh via esignet_register_client.py, DO NOT COMMIT >>>\n-----END PRIVATE KEY-----\n",
+    "keyId": "<kid printed by esignet_register_client.py>",
     "scopes": ["openid", "profile", "email"]
   }
 ]
+```
+NOTE (hardened/loopback rebuild):
+  issuerUrl       = docker-internal, container name on waltid_default (server-side
+                    discovery + token POST). verifiably-go runs in a container and
+                    CANNOT reach localhost:3005.
+  publicIssuerUrl = browser-facing (reached via SSH tunnel). ALSO the authority used
+                    for the client_assertion `aud`, because eSignet validates aud
+                    against MOSIP_ESIGNET_DOMAIN_URL (=http://localhost:3005). The
+                    aud-decoupling in oidc.go (setClientAuth) makes aud follow
+                    publicIssuerUrl while the POST goes to issuerUrl.
+```

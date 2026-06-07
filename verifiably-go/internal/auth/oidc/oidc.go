@@ -230,7 +230,13 @@ func (p *Provider) Exchange(ctx context.Context, code, pkceVerifier, redirectURI
 // client_secret when present.
 func (p *Provider) setClientAuth(form url.Values, tokenEndpoint string) error {
 	if strings.EqualFold(p.cfg.ClientAuthMethod, "private_key_jwt") {
-		assertion, err := p.clientAssertion(tokenEndpoint)
+		// aud must match the IdP-advertised (public) token endpoint even when
+		// we POST to a docker-internal host; rewrite authority to PublicIssuerURL.
+		aud := tokenEndpoint
+		if pub := urlAuthority(p.cfg.PublicIssuerURL); pub != "" {
+			aud = swapAuthority(tokenEndpoint, pub)
+		}
+		assertion, err := p.clientAssertion(aud)
 		if err != nil {
 			return err
 		}
