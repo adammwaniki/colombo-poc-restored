@@ -132,6 +132,7 @@ cmd_up() {
   # from completing (see docker-compose.injiweb-fix.yml for detail). Recreate
   # them so they start with a clean layer.
   if [[ "$(scenario_needs_injiweb "$scenario")" == "yes" ]]; then
+    bash "$SCRIPT_DIR/scripts/build-mockid-sunbird.sh" || red "  mock-identity-sunbird build failed (eSignet-vs-Sunbird auth needs it)"
     recover_injiweb
     # Mimoto's compose mount expects a writable copy of oidckeystore.p12 at
     # deploy/compose/injiweb/config/certs-runtime/. The "certs-runtime" copy

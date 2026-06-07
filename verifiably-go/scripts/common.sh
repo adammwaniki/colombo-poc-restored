@@ -309,6 +309,11 @@ compose() {
   if [[ -f "$credebl_compose" ]]; then
     extra+=( -f "$credebl_compose" )
   fi
+  # colombo-poc: Sunbird-backed mock-identity (patched image + host-gateway).
+  local sunbird_mockid="$SCRIPT_DIR/deploy/docker-compose.sunbird-mockid.yml"
+  if [[ -f "$sunbird_mockid" ]]; then
+    extra+=( -f "$sunbird_mockid" )
+  fi
   docker compose -p "$COMPOSE_PROJECT" -f "$VERIFIABLY_COMPOSE_FILE" "${extra[@]}" "$@"
 }
 

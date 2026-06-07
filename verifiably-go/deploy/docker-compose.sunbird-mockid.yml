@@ -1,0 +1,11 @@
+# colombo-poc: make injiweb-mock-identity read the Sunbird register of record.
+# Pins the patched image + reaches Sunbird via the host gateway, so the
+# esignet/inji scenarios stay decoupled from the Sunbird compose network.
+services:
+  injiweb-mock-identity:
+    image: mock-identity-sunbird:v010
+    environment:
+      SUNBIRD_REGISTRY_URL: http://host.docker.internal:18091
+      SUNBIRD_ENTITY: Person
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
