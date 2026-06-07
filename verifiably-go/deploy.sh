@@ -46,9 +46,22 @@ source "$SCRIPT_DIR/scripts/gen-caddy.sh"
 
 # ---------------------------------------------------------------- subcommands
 
+# up_sunbird_rc brings up the Sunbird RC registry of record (separate compose
+# project at ../../sunbird-rc) + the bulk_issuance service. Registry-only core;
+# the Node-V2 signing chain stays off (issuance is on walt.id per the doc).
+up_sunbird_rc() {
+  local dir="$SCRIPT_DIR/../../sunbird-rc"
+  [[ -d "$dir" ]] || { red "sunbird-rc not found at $dir"; return 1; }
+  bold "Bringing up Sunbird RC (registry of record + bulk issuance)"
+  ( cd "$dir" && env -u POSTGRES_USER -u POSTGRES_PASSWORD -u POSTGRES_DB -u POSTGRES_PORT -u KEYCLOAK_REALM -u KEYCLOAK_CLIENT_ID -u KEYCLOAK_PORT -u KEYCLOAK_SECRET docker compose up -d db es keycloak registry nginx redis zookeeper kafka vault public-key-service context-proxy-service notification-ms bulk_issuance )
+  docker exec sunbird-rc-db-1 psql -U postgres -c "ALTER ROLE postgres PASSWORD 'postgres'" >/dev/null 2>&1 || true
+  green "  Sunbird registry -> http://localhost:18091   bulk-issuance -> http://localhost:5665"
+}
+
 cmd_up() {
   local scenario="${1:-}"
-  [[ -n "$scenario" ]] || { red "usage: deploy.sh up <all|waltid|inji|credebl>"; exit 2; }
+  [[ -n "$scenario" ]] || { red "usage: deploy.sh up <all|waltid|inji|credebl|esignet|sunbird-rc>"; exit 2; }
+  if [[ "$scenario" == "sunbird-rc" ]]; then up_sunbird_rc; return; fi
   scenario_services "$scenario" > /dev/null  # validate
 
   require docker
