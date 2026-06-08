@@ -12,12 +12,19 @@
 #
 # Fix: split-horizon — resolve vc.in-labs.cdpi.dev to the caddy-public CONTAINER
 # (same waltid_default network, directly reachable), which terminates TLS for
-# that host and proxies to verifiably-go. Re-run after any restart. Idempotent.
+# that host and proxies to verifiably-go.
 #
-# PERMANENT fix (survives restarts, no IP hardcoding): give caddy-public a
-# docker network alias for the host, in the stack compose:
-#   services.caddy-public.networks.default.aliases: ["vc.in-labs.cdpi.dev"]
-# then recreate caddy-public. Until that's applied, run this script.
+# PERMANENT fix — ALREADY APPLIED (2026-06-09): caddy-public carries a docker
+# network alias for the host, so every waltid_default container resolves
+# vc.in-labs.cdpi.dev -> caddy-public via docker DNS (no /etc/hosts, no IP
+# pinning, survives restarts). Applied live with
+#   docker network disconnect waltid_default waltid-caddy-public-1
+#   docker network connect --alias caddy-public --alias vc.in-labs.cdpi.dev waltid_default waltid-caddy-public-1
+# and persisted in the stack compose (caddy-public.networks.default.aliases).
+#
+# This script is now only a FALLBACK: if caddy-public is ever recreated WITHOUT
+# the compose alias and the DNS path breaks, run it to re-pin /etc/hosts.
+# Idempotent.
 set -euo pipefail
 CADDY_IP=$(docker inspect waltid-caddy-public-1 \
   --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
