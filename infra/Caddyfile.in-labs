@@ -1,0 +1,44 @@
+# Caddyfile for the Colombo SAR workshop — public HTTPS for the in-labs.cdpi.dev
+# subdomains (A records → 156.67.105.185). Mounted into the compose `caddy-public`
+# service (deploy/compose/stack/Caddyfile.public) which publishes :80/:443.
+#
+# Scoped to EXACTLY the 5 subdomains that have DNS, so Let's Encrypt doesn't
+# fail (and risk rate-limits) on the other slugs deploy.sh would otherwise emit.
+# caddy-public runs on waltid_default (reaches walt.id/eSignet/WSO2 by name) with
+# host-gateway (reaches the separate Sunbird stack via the published host port).
+
+{
+	email zumimzam@gmail.com
+}
+
+# walt.id OID4VCI issuer — the credential offers external wallets fetch.
+walt-issuer.in-labs.cdpi.dev {
+	reverse_proxy issuer-api:7002
+}
+
+# walt.id OID4VP verifier.
+walt-verifier.in-labs.cdpi.dev {
+	reverse_proxy verifier-api:7003
+}
+
+# eSignet OIDC (login UI + /v1/esignet API, proxied by the oidc-ui nginx).
+esignet.in-labs.cdpi.dev {
+	reverse_proxy injiweb-oidc-ui:3000
+}
+
+# WSO2 Identity Server (alt IdP) — presents a self-signed cert internally.
+wso2.in-labs.cdpi.dev {
+	reverse_proxy https://wso2is:9443 {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+}
+
+# Sunbird RC registry of record (separate compose; reached over host-gateway).
+# NOTE: this registry is anonymous read/write — exposing it publicly means open
+# access to the Person register. Front it with auth or drop this site for a real
+# deployment.
+sunbird-rc.in-labs.cdpi.dev {
+	reverse_proxy host.docker.internal:18091
+}
