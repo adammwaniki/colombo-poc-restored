@@ -5,42 +5,62 @@
 <title>Sunbird Registry Admin — Person</title>
 <style>
  body{font-family:system-ui,Segoe UI,sans-serif;margin:0;color:#1a1a1a;background:#f6f7f9}
- header{background:#0b5; background:#114b5f;color:#fff;padding:.8rem 1.2rem;display:flex;align-items:center;gap:1rem}
+ header{background:#114b5f;color:#fff;padding:.8rem 1.2rem;display:flex;align-items:center;gap:1rem}
  header h1{font-size:1.05rem;margin:0;font-weight:600}
- header small{opacity:.8}
+ header small{opacity:.85}
  main{max-width:1200px;margin:1rem auto;padding:0 1rem}
+ .help{background:#eaf3f6;border:1px solid #cfe3ea;border-radius:8px;padding:.65rem .85rem;font-size:.84rem;line-height:1.45;margin:.4rem 0 .8rem}
+ .help b{color:#114b5f}
+ .steps{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem}
+ .step{background:#fff;border:1px solid #cfe3ea;border-radius:20px;padding:.15rem .6rem;font-size:.76rem;color:#114b5f}
  .bar{display:flex;gap:.5rem;align-items:center;margin:.6rem 0;flex-wrap:wrap}
- input,select,button{padding:.45rem .55rem;border:1px solid #ccc;border-radius:6px;font-size:.9rem}
+ input,select,button{padding:.5rem .6rem;border:1px solid #ccc;border-radius:6px;font-size:.9rem}
  button{background:#114b5f;color:#fff;border:0;cursor:pointer}
  button.sec{background:#e7eaec;color:#114b5f}
  table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px #0001}
  th,td{padding:.5rem .6rem;text-align:left;border-bottom:1px solid #eee;font-size:.85rem}
  th{background:#eef1f3;font-weight:600}
  tr:hover{background:#f9fbfc}
- .tag{font-size:.72rem;padding:.1rem .4rem;border-radius:10px;background:#e6f4ea;color:#136c33}
- dialog{border:0;border-radius:10px;padding:1.2rem;max-width:520px;width:92%;box-shadow:0 10px 40px #0003}
+ mark{background:#fff3a0;padding:0}
+ .tag{font-size:.72rem;padding:.1rem .45rem;border-radius:10px;background:#e6f4ea;color:#136c33}
+ .tagbad{font-size:.72rem;padding:.1rem .45rem;border-radius:10px;background:#fce8e6;color:#b3261e}
+ dialog{border:0;border-radius:10px;padding:1.2rem;max-width:600px;width:94%;box-shadow:0 10px 40px #0003}
  dialog label{display:block;margin:.5rem 0 .15rem;font-size:.78rem;color:#555}
  dialog input,dialog select{width:100%;box-sizing:border-box}
  .row2{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
  .muted{color:#888;font-size:.8rem}
+ .cert{border:1px solid #e3e7ea;border-radius:8px;padding:.6rem .7rem;margin:.5rem 0;background:#fcfdfe}
+ .cert .ch{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+ .cert .cb{margin:.35rem 0;font-size:.85rem}
+ .cert .ca{display:flex;gap:.4rem;margin-top:.4rem}
+ .cid{word-break:break-all;font-size:.7rem;color:#aaa}
+ pre{background:#0b1f27;color:#cfe;padding:.8rem;border-radius:8px;overflow:auto;max-height:55vh;font-size:.75rem}
 </style>
 </head>
 <body>
 <header>
-  <h1>Sunbird Registry Admin</h1><small>Person register of record · v2.0.1</small>
-  <span style="flex:1"></span>
-  <small id="count"></small>
+  <h1>Sunbird Registry Admin</h1><small>Person register of record · Grama Niladhari office</small>
+  <span style="flex:1"></span><small id="count"></small>
 </header>
 <main>
+  <div class="help">
+    <b>What you can do here.</b> Look up a citizen in the register, then issue them a <b>Grama Niladhari
+    certificate</b> — a digitally-signed credential proving their address. Hand it to the citizen with
+    <b>Download</b> (for their wallet); any other office can confirm it by an API call — the citizen never
+    has to present it. Edits write straight to the registry (Postgres + Elasticsearch).
+    <div class="steps">
+      <span class="step">1 · Find the citizen</span><span class="step">2 · Issue GN certificate</span>
+      <span class="step">3 · Download → citizen's wallet</span><span class="step">4 · Other offices verify by API</span>
+    </div>
+  </div>
   <div class="bar">
-    <input id="q" placeholder="filter by district (region), blank = all" style="min-width:240px">
-    <button onclick="load()">Search</button>
-    <button class="sec" onclick="openForm()">+ New Person</button>
-    <span class="muted">Edits write straight to the registry (Postgres + Elasticsearch).</span>
+    <input id="q" placeholder="🔍 Search by name, National ID or district — type to filter live" style="flex:1;min-width:260px" autocomplete="off">
+    <button class="sec" onclick="reload()">↻ Refresh</button>
+    <button onclick="openForm()">+ New Person</button>
   </div>
   <table>
-    <thead><tr><th>National ID</th><th>Name</th><th>Gender</th><th>District</th><th>Country</th><th>Cultivator</th><th>Farm</th><th>Crops</th><th></th></tr></thead>
-    <tbody id="rows"><tr><td colspan="9" class="muted">Loading…</td></tr></tbody>
+    <thead><tr><th>National ID</th><th>Name</th><th>Gender</th><th>District</th><th>Cultivator</th><th>Farm</th><th>Crops</th><th></th></tr></thead>
+    <tbody id="rows"><tr><td colspan="8" class="muted">Loading…</td></tr></tbody>
   </table>
 </main>
 
@@ -63,44 +83,34 @@
     <div><label>Primary crops</label><input id="f_primaryCrops"></div>
   </div>
   <div class="bar" style="justify-content:flex-end;margin-top:1rem">
-    <button class="sec" onclick="dlg.close()">Cancel</button>
-    <button onclick="save()">Save</button>
+    <button class="sec" onclick="dlg.close()">Cancel</button><button onclick="save()">Save</button>
   </div>
   <div id="dlgmsg" class="muted"></div>
 </dialog>
 
 <dialog id="certDlg">
   <h3 id="certTitle" style="margin:.2rem 0 .2rem">GN certificates</h3>
-  <div class="muted" style="margin-bottom:.6rem">Sunbird-native issuance — the Grama Niladhari signs a certificate VC; the registry retains it (verify by API, no presentation needed).</div>
+  <div class="muted" style="margin-bottom:.4rem">A Grama Niladhari certificate is a signed credential of the
+    citizen's address. Issue one, then <b>Download</b> it for their wallet. Other offices confirm it by API
+    (verify / search) — no presentation needed.</div>
   <div id="certList" class="muted">Loading…</div>
-  <div class="bar" style="justify-content:flex-end;margin-top:1rem">
+  <div class="bar" style="justify-content:space-between;margin-top:1rem">
+    <button onclick="issueCert()">+ Issue GN certificate</button>
     <button class="sec" onclick="certDlg.close()">Close</button>
-    <button onclick="issueCert()">Issue GN certificate</button>
   </div>
   <div id="certMsg" class="muted"></div>
 </dialog>
 
+<dialog id="vcDlg">
+  <h3 style="margin:.2rem 0 .4rem">Signed credential</h3>
+  <pre id="vcPre">…</pre>
+  <div class="bar" style="justify-content:flex-end;margin-top:.6rem"><button class="sec" onclick="vcDlg.close()">Close</button></div>
+</dialog>
+
 <script>
-const API="/api/v1/Person";           // same-origin -> Caddy routes to the registry
-let certNid=null;
-function openCerts(nid,name){certNid=nid;certTitle.textContent="GN certificates — "+name+" ("+nid+")";certMsg.textContent="";certList.innerHTML="Loading…";certDlg.showModal();loadCerts()}
-async function loadCerts(){
-  let r={}; try{r=await (await fetch("/issuer/list?nationalId="+encodeURIComponent(certNid))).json()}catch(e){certList.textContent="issuer-api unreachable";return}
-  let cs=r.credentials||[];
-  certList.innerHTML=cs.length?cs.map(c=>{
-    let ok=c.checks&&c.checks[0]&&c.checks[0].proof=="OK";
-    return `<div style="padding:.4rem 0;border-bottom:1px solid #eee;font-size:.82rem">
-      <div><b>${esc(c.status)}</b> ${ok?'<span class=tag>verified ✓</span>':''}</div>
-      <div class=muted style="word-break:break-all">${esc(c.credentialId)}</div></div>`}).join(""):'<span class=muted>No GN certificates issued yet.</span>';
-}
-async function issueCert(){
-  certMsg.textContent="Issuing…";
-  let r={}; try{r=await (await fetch("/issuer/issue",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nationalId:certNid})})).json()}catch(e){certMsg.textContent="issuer-api unreachable";return}
-  certMsg.textContent=r.ok?("Issued ✓ "+r.credentialId):("Failed: "+(r.error||"unknown"));
-  if(r.ok) loadCerts();
-}
+const API="/api/v1/Person";
 const FIELDS=["nationalId","pin","givenName","familyName","gender","dateOfBirth","region","country","email","phone","isCultivator","farmId","farmSizeHectares","primaryCrops"];
-let editingOsid=null;
+let allRows=[], editingOsid=null, certNid=null;
 
 async function api(path,method,body){
   const r=await fetch(path,{method,headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
@@ -108,42 +118,80 @@ async function api(path,method,body){
   if(!r.ok) throw new Error("HTTP "+r.status+" "+t.slice(0,120));
   return j;
 }
-async function load(){
-  const region=q.value.trim();
-  const filters=region?{region:{eq:region}}:{};
-  let res; try{res=await api(API+"/search","POST",{filters,limit:200})}catch(e){rows.innerHTML='<tr><td colspan=9 class=muted>'+e.message+'</td></tr>';return}
-  const data=Array.isArray(res)?res:(res.data||[]);
-  count.textContent=data.length+" record(s)";
-  rows.innerHTML=data.sort((a,b)=>(a.nationalId||"").localeCompare(b.nationalId||"")).map(p=>`
+function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function hl(s,f){s=esc(s); if(!f)return s; const i=s.toLowerCase().indexOf(f); return i<0?s:s.slice(0,i)+"<mark>"+s.slice(i,i+f.length)+"</mark>"+s.slice(i+f.length)}
+
+async function reload(){
+  let res; try{res=await api(API+"/search","POST",{filters:{},limit:500})}catch(e){rows.innerHTML='<tr><td colspan=8 class=muted>'+e.message+'</td></tr>';return}
+  allRows=(Array.isArray(res)?res:(res.data||[])).sort((a,b)=>(a.nationalId||"").localeCompare(b.nationalId||""));
+  render();
+}
+function render(){
+  const f=q.value.trim().toLowerCase();
+  const data=allRows.filter(p=>!f || [p.nationalId,p.fullName,p.region].some(v=>(v||"").toLowerCase().includes(f)));
+  count.textContent=data.length+(f?(" of "+allRows.length):"")+" record(s)";
+  rows.innerHTML=data.map(p=>`
     <tr>
-      <td>${esc(p.nationalId)}</td><td>${esc(p.fullName)}</td><td>${esc(p.gender)}</td>
-      <td>${esc(p.region)}</td><td>${esc(p.country)}</td>
+      <td>${hl(p.nationalId,f)}</td><td>${hl(p.fullName,f)}</td><td>${esc(p.gender)}</td>
+      <td>${hl(p.region,f)}</td>
       <td>${p.isCultivator?'<span class=tag>cultivator</span>':''}</td>
       <td>${esc(p.farmId)}</td><td>${esc(p.primaryCrops)}</td>
       <td style="white-space:nowrap">
         <button class=sec onclick='edit(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Edit</button>
-        <button class=sec onclick='openCerts("${esc(p.nationalId)}","${esc(p.fullName).replace(/'/g,"&#39;")}")'>GN cert</button>
+        <button onclick='openCerts("${esc(p.nationalId)}","${esc(p.fullName).replace(/'/g,"&#39;")}")'>GN cert</button>
       </td>
-    </tr>`).join("")||'<tr><td colspan=9 class=muted>No records.</td></tr>';
+    </tr>`).join("")||'<tr><td colspan=8 class=muted>No matches for “'+esc(q.value)+'”.</td></tr>';
 }
-function esc(s){return (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+q.addEventListener("input",render);
+
 function openForm(){editingOsid=null;dlgt.textContent="New Person";FIELDS.forEach(f=>{const el=document.getElementById("f_"+f);if(el)el.value=(f=="country"?"Sri Lanka":(f=="isCultivator"?"false":""))});dlgmsg.textContent="";dlg.showModal()}
 function edit(p){editingOsid=p.osid;dlgt.textContent="Edit "+(p.fullName||p.nationalId);FIELDS.forEach(f=>{const el=document.getElementById("f_"+f);if(el)el.value=(p[f]==null?"":p[f])});dlgmsg.textContent="osid "+p.osid;dlg.showModal()}
 async function save(){
   const g=id=>document.getElementById("f_"+id).value.trim();
-  const rec={nationalId:g("nationalId"),pin:g("pin"),password:g("pin"),
-    givenName:g("givenName"),familyName:g("familyName"),fullName:(g("givenName")+" "+g("familyName")).trim(),
-    gender:g("gender"),dateOfBirth:g("dateOfBirth"),region:g("region"),country:g("country"),
-    email:g("email"),phone:g("phone"),isCultivator:g("isCultivator")==="true",
-    farmId:g("farmId"),primaryCrops:g("primaryCrops")};
+  const rec={nationalId:g("nationalId"),pin:g("pin"),password:g("pin"),givenName:g("givenName"),familyName:g("familyName"),
+    fullName:(g("givenName")+" "+g("familyName")).trim(),gender:g("gender"),dateOfBirth:g("dateOfBirth"),region:g("region"),
+    country:g("country"),email:g("email"),phone:g("phone"),isCultivator:g("isCultivator")==="true",farmId:g("farmId"),primaryCrops:g("primaryCrops")};
   const fs=g("farmSizeHectares"); if(fs) rec.farmSizeHectares=Number(fs);
-  try{
-    if(editingOsid) await api(API+"/"+editingOsid,"PUT",rec);
-    else await api(API,"POST",rec);
-    dlg.close(); load();
-  }catch(e){dlgmsg.textContent="Save failed: "+e.message}
+  try{ if(editingOsid) await api(API+"/"+editingOsid,"PUT",rec); else await api(API,"POST",rec); dlg.close(); reload(); }
+  catch(e){dlgmsg.textContent="Save failed: "+e.message}
 }
-load();
+
+function openCerts(nid,name){certNid=nid;certTitle.textContent="GN certificates — "+name+" ("+nid+")";certMsg.textContent="";certList.innerHTML="Loading…";certDlg.showModal();loadCerts()}
+async function loadCerts(){
+  let r={}; try{r=await (await fetch("/issuer/list?nationalId="+encodeURIComponent(certNid))).json()}catch(e){certList.textContent="Issuer service unreachable.";return}
+  const cs=r.credentials||[];
+  certList.innerHTML = cs.length ? cs.map(c=>{
+    const ok=c.checks&&c.checks[0]&&c.checks[0].proof=="OK"; const s=c.subject||{};
+    return `<div class="cert">
+      <div class="ch">
+        <span class="${ok?'tag':'tagbad'}">${ok?'valid ✓ (signature + not revoked)':esc(c.status||'unknown')}</span>
+        <span class="muted">issued ${esc((c.issuanceDate||'').slice(0,10))}</span>
+      </div>
+      <div class="cb"><b>${esc(s.holder||'')}</b> — ${esc(s.address||'')}<br>
+        <span class="muted">${esc(s.gnDivision||'')} · verified on ${esc(s.verifiedOn||'')}</span></div>
+      <div class="cid">${esc(c.credentialId)}</div>
+      <div class="ca">
+        <button class="sec" onclick='downloadVC("${esc(c.credentialId)}","${esc(s.holder||"certificate")}")'>⬇ Download (for wallet)</button>
+        <button class="sec" onclick='showVC("${esc(c.credentialId)}")'>View signed credential</button>
+      </div>
+    </div>`}).join("") : '<div class="muted">No certificate yet for this citizen. Click <b>“+ Issue GN certificate”</b> below.</div>';
+}
+async function issueCert(){
+  certMsg.textContent="Issuing…";
+  let r={}; try{r=await (await fetch("/issuer/issue",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nationalId:certNid})})).json()}catch(e){certMsg.textContent="Issuer service unreachable.";return}
+  certMsg.textContent=r.ok?"Issued ✓ — Download it for the citizen's wallet. Other offices can now verify it by API without a presentation.":("Failed: "+(r.error||"unknown"));
+  if(r.ok) loadCerts();
+}
+async function fetchVC(id){return await (await fetch("/issuer/credential?id="+encodeURIComponent(id))).json()}
+async function downloadVC(id,holder){
+  const vc=await fetchVC(id);
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(vc,null,2)],{type:"application/json"}));
+  a.download=String(holder).replace(/\s+/g,"_")+"-gn-certificate.json"; a.click();
+}
+async function showVC(id){vcPre.textContent=JSON.stringify(await fetchVC(id),null,2);vcDlg.showModal()}
+
+reload();
 </script>
 </body>
 </html>

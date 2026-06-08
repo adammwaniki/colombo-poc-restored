@@ -95,6 +95,11 @@ def issue(nid):
     return {"ok": True, "credentialId": cred["credential"]["id"], "holder": subj["holder"]}
 
 
+def get_credential(cid):
+    s, c = call(CRED, "/credentials/" + cid, method="GET")
+    return c if s < 300 else None
+
+
 def lst(nid):
     _, found = call(CRED, "/credentials/search", {"subject": {"id": "did:example:" + nid}})
     items = found if isinstance(found, list) else found.get("credentials", [])
@@ -103,8 +108,11 @@ def lst(nid):
         cid = c.get("id") or (c.get("credential") or {}).get("id")
         if not cid:
             continue
+        full = get_credential(cid) or {}
         _, ver = call(CRED, "/credentials/" + cid + "/verify", method="GET")
-        out.append({"credentialId": cid, "status": ver.get("status"), "checks": ver.get("checks")})
+        out.append({"credentialId": cid, "status": ver.get("status"), "checks": ver.get("checks"),
+                    "subject": full.get("credentialSubject"), "issuanceDate": full.get("issuanceDate"),
+                    "issuer": full.get("issuer")})
     return {"ok": True, "issuer": CFG["did"], "credentials": out}
 
 
@@ -120,6 +128,10 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path.startswith("/issuer/list"):
             q = parse_qs(urlparse(self.path).query)
             self._s(200, lst((q.get("nationalId") or [""])[0].strip()))
+        elif self.path.startswith("/issuer/credential"):
+            q = parse_qs(urlparse(self.path).query)
+            full = get_credential((q.get("id") or [""])[0].strip())
+            self._s(200 if full else 404, full or {})
         elif self.path == "/issuer/health":
             self._s(200, {"ok": True, "issuer": CFG["did"]})
         else:
