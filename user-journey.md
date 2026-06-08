@@ -41,17 +41,7 @@ All three roles are at **`vc.in-labs.cdpi.dev`**; sign in via the **eSignet** ti
   fields + keep policies on → **Generate** → open the `openid4vp://…` link in the
   Holder wallet → **✓ Credential valid**.
 
-### Per use case — what to issue/verify (mechanics identical; only the schema changes)
-
-**1 · Fertilizer subsidy** — register the farmer (`signup` or `…/admin/`), then:
-- *1A Enrolment:* **ISSUE + HOLD** `CultivatorCredential`.
-- *1B Seasonal claim:* **VERIFY** `CultivatorCredential` → **ISSUE + HOLD**
-  `FertilizerVoucher` → depot **VERIFY** before redeeming.
-
-**2 · Business permit** — register the proprietor, then:
-- *2A Prerequisites:* **ISSUE + HOLD** `AddressProofCredential`,
-  `TaxRegistrationCredential`, and (regulated trades only) `SectorApprovalCredential`.
-- *2B Registration:* **VERIFY** the prerequisites → **ISSUE + HOLD** `BusinessPermitCredential`.
+The full stepwise flows (mapped to the docx) are in the two use-case sections below.
 
 ### Alternative track — registry-of-record + Inji Verify (Sunbird-native)
 
@@ -88,128 +78,100 @@ address verification**.
 - **Bulk / back-office** — a ministry officer issues to many eligible citizens at
   once by reading the register through verifiably's **DB source**
   (`SELECT … FROM vc_* views`). Same credential, same issuer; eligibility is the
-  query's `WHERE` clause. Flagged inline as **⇒ Bulk** where it applies.
+  query's `WHERE` clause. Applies to the **ISSUE** steps in the flows below — see
+  *Where the DB-source bulk path fits*.
 
 Sample test identity (seeded): National ID `80000006`, PIN `100005`
 (`isCultivator = true`, `farmId = KE-FARM-0006`).
 
 ---
 
+# How the docx flows map to this deployment
+
+Three substitutions from the reference architecture, named once here, then assumed:
+- **Wallet** — the docx names **Credo**; this deployment uses the **walt.id wallet**
+  via verifiably's **Holder** role (Credo isn't deployed). "Accept into the wallet" = HOLD.
+- **Attestation workflow & eligibility/validity rules** — in the MVP these are
+  **officer actions in the Sunbird admin portal**, not an automated engine.
+- **Business-permit prerequisites** — the docx lists GN certificate + notary
+  deed/lease + sector approval. Built schemas cover the GN certificate
+  (`AddressProofCredential`), sector approval (`SectorApprovalCredential`) and permit
+  (`BusinessPermitCredential`); `TaxRegistrationCredential` stands in for the
+  deed/lease until a `DeedOrLease` schema is added.
+
+Each step's **how-to** (the exact clicks) is the ISSUE / HOLD / VERIFY procedure in
+the runbook above. Host shorthand: **vc** = `vc.in-labs.cdpi.dev`, **sunbird** =
+`sunbird-rc.in-labs.cdpi.dev/admin/`, **signup** = `signup.in-labs.cdpi.dev`.
+
+---
+
 # Use case 1 — Fertilizer subsidy (Yala)
 
-The subsidy targets paddy farmers each Yala season. In the MVP the entitlement is
-delivered as an **e-voucher credential** (no cash/payment leg). Two flows: a
-one-time **enrolment** that puts a farmer on the register and gives a
-**CultivatorCredential**, and a per-season **claim** that checks eligibility and
-issues the **FertilizerVoucher**.
+Paddy farmers, each Yala season; the entitlement is delivered as an **e-voucher
+credential** (no payment leg). Two flows: a one-time **enrolment** →
+`CultivatorCredential`, and a per-season **claim** → `FertilizerVoucher`.
 
-## 1.1 Enrolment (first-time farmer or tenant)
+## Flow A · Enrolment (first-time farmer or tenant)
+*The physical land inspection that establishes cultivation rights is retained; only the recording and the credential are digitised.*
 
-**Who:** an agricultural extension officer + the farmer. **When:** once, on first
-registration. **Physical step retained:** the land inspection.
+| # | Step (docx) | DPG · interface | Host endpoint · what to do |
+|---|-------------|-----------------|----------------------------|
+| 1 | Farmer authenticates with the National ID Card | **eSignet** · OAuth2/OIDC | **vc** → sign in via the **eSignet** tile (NID `80000006` / PIN `100005`) |
+| 2 | Land inspection & rights check (physical) recorded as an attestation | **Sunbird RC** · attestation | **sunbird** → open the farmer's record, note the inspection outcome |
+| 3 | Cultivator entry written to the land register (`isCultivator`, `farmId`, `farmSizeHectares`, `primaryCrops`, `region`) | **Sunbird RC** · registry | **sunbird** (officer) — or the farmer self-registers at **signup** |
+| 4 | `CultivatorCredential` issued (OID4VCI) and accepted into the wallet | **walt.id issuer → wallet** | **ISSUE** at **vc** → *Issuer*; **HOLD** at **vc** → *Holder* |
 
-```
-Farmer ── physical land inspection ──► Officer
-Officer ── record farmer + parcel ───► Sunbird RC (V_Person)
-Officer ── issue via verifiably ─────► walt.id ──► offer URI
-Farmer ── scan offer / eSignet login ► Wallet  ◄── CultivatorCredential
-```
+**Outcome:** the farmer is on the register as a cultivator and holds the
+`CultivatorCredential` — the precondition for every claim.
 
-| # | Actor | Component | Action |
-|---|-------|-----------|--------|
-| 1 | Officer | — (physical) | Inspects the land; confirms cultivation rights. *Not digitised.* |
-| 2 | Officer | **Sunbird RC** | Records the farmer + parcel on the register: a `Person` with `isCultivator=true`, `farmId`, `farmSizeHectares`, `primaryCrops`, `region`. This is the authoritative record. |
-| 3 | Farmer | **eSignet** | (Optional, to bind issuance to the citizen) authenticates with National ID + PIN; eSignet reads the just-written `V_Person` record. |
-| 4 | Officer | **verifiably → walt.id** | Issues a **`CultivatorCredential`** (`holder, nationalId, farmId, location, hectares, crops, registeredOn`) as an OID4VCI pre-auth offer. **⇒ Bulk:** at a registration drive, issue to every newly-enrolled cultivator at once via the **DB source** → `SELECT * FROM vc_fertilizer_cultivator`. |
-| 5 | Farmer | **Wallet** (Credo/Inji) | Opens the offer URI (QR or link), accepts; the `CultivatorCredential` lands in the wallet. |
+## Flow B · Seasonal claim (once per Yala, already-enrolled farmer)
 
-**Outcome:** the farmer holds a portable `CultivatorCredential` and is on the
-register as a cultivator — the precondition for every seasonal claim.
-
-## 1.2 Seasonal claim (already-enrolled farmer, once per Yala season)
-
-**Who:** the enrolled farmer (self-service). **Precondition:** holds a valid
-`CultivatorCredential` / is on the register as a cultivator.
-
-```
-Farmer ── eSignet login ───────────► authenticated
-        ── present CultivatorCred ──► walt.id verifier (eligibility)
-Office ── check register/eligibility► Sunbird RC
-        ── issue entitlement ───────► walt.id ──► offer URI
-Farmer ── accept ──────────────────► Wallet ◄── FertilizerVoucher (e-voucher)
-```
-
-| # | Actor | Component | Action |
-|---|-------|-----------|--------|
-| 1 | Farmer | **eSignet** | Authenticates with National ID + PIN. |
-| 2 | Farmer | **Wallet → walt.id verifier** | Presents the `CultivatorCredential` (OID4VP), or the office re-checks the register — proving eligibility for this season. |
-| 3 | Office | **Sunbird RC** | Confirms the farmer is an enrolled cultivator and has not already claimed this season (eligibility rule). |
-| 4 | Office | **verifiably → walt.id** | Issues a **`FertilizerVoucher`** (`holder, nationalId, farmId, season="Yala 2026", crop, entitlementKg, voucherId, validUntil`) — the entitlement as an e-voucher credential. **⇒ Bulk:** at season open, issue vouchers to all eligible cultivators via the **DB source** → `SELECT * FROM vc_fertilizer_voucher` (entitlement derived from registered hectares). |
-| 5 | Farmer | **Wallet** | Accepts the `FertilizerVoucher`. |
-| 6 | Farmer | depot + **walt.id verifier** | At the agro-dealer/depot, presents the voucher; the depot verifies signature + validity + that it is unspent, and redeems it for fertilizer. |
+| # | Step (docx) | DPG · interface | Host endpoint · what to do |
+|---|-------------|-----------------|----------------------------|
+| 1 | Farmer authenticates with the National ID Card | **eSignet** · OAuth2/OIDC | **vc** → **eSignet** tile |
+| 2 | Cultivator & land record verified — incl. active cultivation this season | **Sunbird RC** + **walt.id verifier** | check the record at **sunbird**; and/or **VERIFY** the `CultivatorCredential` at **vc** → *Verifier* |
+| 3 | Eligibility & entitlement checked — paddy crop, active cultivation, per-farmer hectare cap; amount by land area | **rules check on the register** (officer, MVP) | **sunbird** — confirm eligibility; `entitlementKg` derived from hectares |
+| 4 | `FertilizerVoucher` e-voucher issued (OID4VCI pre-auth) and accepted | **walt.id issuer → wallet** | **ISSUE** at **vc** → *Issuer*; **HOLD** → *Holder* |
+| 5 | Voucher presented & verified at the Agrarian Service Centre on redemption | **walt.id verifier** · OID4VP | **VERIFY** at **vc** → *Verifier* (depot checks signature, validity, status) |
 
 **Outcome:** the farmer redeems a verifiable e-voucher for the season's fertilizer
-— no cash transfer, reusing the same issuer and wallet.
+— no cash transfer, same issuer and wallet.
 
 ---
 
 # Use case 2 — Sole-proprietor business permit
 
-Registers a sole proprietorship. No payments / G2P component — it runs entirely on
-the five MVP components. Two flows: **enrolment** that gathers the prerequisite
-credentials into the wallet, and **registration** that validates them and records
-the business name. The Grama Niladhari address verification stays physical; only
-the certificate becomes a credential.
+Registers a sole proprietorship; no payments / G2P. Two flows: **enrolment** that
+gathers the prerequisite credentials, and **registration** that validates and records
+them. The Grama Niladhari address verification stays physical; only the certificate
+becomes a credential.
 
-## 2.1 Enrolment (assemble prerequisite credentials)
+## Flow A · Enrolment (assemble prerequisite credentials)
+*Each supporting document becomes a wallet credential; a regulated trade adds a sector approval.*
 
-**Who:** the prospective proprietor. **Goal:** collect each supporting document as
-a verifiable credential in the wallet. For a **regulated trade**, add a sector
-approval.
+| # | Step (docx) | DPG · interface | Host endpoint · what to do |
+|---|-------------|-----------------|----------------------------|
+| 1 | Applicant authenticates with the National ID Card | **eSignet** · OAuth2/OIDC | **vc** → **eSignet** tile |
+| 2 | Grama Niladhari address verification (physical); certificate issued as a credential & accepted | **walt.id issuer → wallet** | **ISSUE** `AddressProofCredential` (the GN certificate) at **vc** → *Issuer*; **HOLD** → *Holder* |
+| 3 | Notary-certified deed or lease issued as a credential (proof of business address) & accepted | **walt.id issuer → wallet** | **ISSUE** the deed/lease credential † at **vc** → *Issuer*; **HOLD** → *Holder* |
+| 4 | Sector approval issued as a credential — if the trade is regulated — & accepted | **walt.id issuer → wallet** | **ISSUE** `SectorApprovalCredential` at **vc** → *Issuer*; **HOLD** → *Holder* |
 
-```
-Proprietor ── eSignet login ─────────► authenticated (National ID)
-GN office ── physical address check ──► (physical) ──► Address Proof credential
-Issuers ── issue each supporting doc ─► walt.id ──► offers
-Proprietor ── accept each ───────────► Wallet ◄── [IdentityVC, AddressProofVC,
-                                                   TaxVC, (SectorApprovalVC)]
-```
+† stand-in: the built set uses `TaxRegistrationCredential`; add a `DeedOrLease` schema to match the docx exactly.
 
-| # | Actor | Component | Action |
-|---|-------|-----------|--------|
-| 1 | Proprietor | **eSignet** | Authenticates with National ID + PIN; establishes the verified identity the supporting credentials bind to. |
-| 2 | GN officer | — (physical) | Verifies the residential/business address in person. *Not digitised.* |
-| 3 | GN office | **verifiably → walt.id** | Issues the **Address Proof** as a credential (the GN certificate). |
-| 4 | Other issuers | **verifiably → walt.id** | Issue the remaining prerequisites as credentials — identity attestation, tax/TIN, and **for a regulated trade a sector approval**. **⇒ Bulk:** any office issuing the same prerequisite to a known cohort uses the **DB source**. |
-| 5 | Proprietor | **Wallet** | Accepts each offer; the wallet now holds the full set of prerequisite credentials. |
+**Outcome:** the proprietor's wallet holds the assembled prerequisite credentials.
 
-**Outcome:** the proprietor's wallet holds the assembled prerequisite credentials,
-ready to present for registration.
+## Flow B · Registration (validate + record + issue the permit)
 
-## 2.2 Registration (validate + record + issue the permit)
-
-**Who:** the proprietor + the business-registry officer.
-
-```
-Proprietor ── eSignet login ──────────► authenticated
-           ── present prerequisites ──► walt.id verifier (OID4VP)
-Registrar ── validate VCs ────────────► all signatures/expiry/status OK
-Registrar ── record business name ────► Sunbird RC (Business register)
-           ── issue permit ───────────► walt.id ──► offer URI
-Proprietor ── accept ─────────────────► Wallet ◄── BusinessPermitCredential
-```
-
-| # | Actor | Component | Action |
-|---|-------|-----------|--------|
-| 1 | Proprietor | **eSignet** | Authenticates with National ID + PIN. |
-| 2 | Proprietor | **Wallet → walt.id verifier** | Presents the assembled prerequisite credentials (identity, address proof, tax, + sector approval if regulated) in one OID4VP exchange. |
-| 3 | Registrar | **walt.id verifier** | Validates every presented credential — signature, expiry, status-list (not revoked), and required claims. |
-| 4 | Registrar | **Sunbird RC** | On success, records the **business name** + proprietor on the business register (authoritative record). |
-| 5 | Registrar | **verifiably → walt.id** | Issues the **`BusinessPermitCredential`** (`holder, nationalId, businessName, businessType, address, permitId, issuedOn`) as an OID4VCI offer. **⇒ Bulk:** reissue/renew permits for a batch via the **DB source** → `SELECT * FROM vc_business_permit`. |
-| 6 | Proprietor | **Wallet** | Accepts the `BusinessPermitCredential` — the portable proof of registration. |
+| # | Step (docx) | DPG · interface | Host endpoint · what to do |
+|---|-------------|-----------------|----------------------------|
+| 1 | Applicant authenticates with the National ID Card | **eSignet** · OAuth2/OIDC | **vc** → **eSignet** tile |
+| 2 | Business-name uniqueness checked | **Sunbird RC** · registry | **sunbird** — search the business-name register |
+| 3 | Application validity checked — required credentials present & valid (GN certificate, deed, affidavit; sector approval if regulated) | **completeness check** (officer, MVP) | confirm the applicant holds the prerequisites from Flow A |
+| 4 | Credentials presented to the Divisional Secretary & verified | **walt.id verifier** · OID4VP | **VERIFY** at **vc** → *Verifier* — request a presentation; applicant presents from the *Holder* wallet |
+| 5 | `BusinessPermitCredential` issued and the register updated | **walt.id issuer + Sunbird RC** | **ISSUE** at **vc** → *Issuer*; **HOLD** → *Holder*; record the business at **sunbird** |
 
 **Outcome:** the business is on the register and the proprietor holds a verifiable
-business permit, presentable to banks, suppliers, and authorities.
+permit, presentable to banks, suppliers, and authorities.
 
 ---
 
@@ -349,7 +311,7 @@ Issuer attribution: *Divisional Secretariat (Business Registration)*. View: `vc_
 
 The journeys above are the **interactive, per-person** path (eSignet-authenticated,
 one credential at a time). The **`model-a-sunbird-db-source/`** build is the
-**back-office bulk** path for the issuance steps marked **⇒ Bulk**: an officer
+**back-office bulk** path for the **ISSUE** steps in those flows: an officer
 reads the register through verifiably's Database source and issues to every
 eligible citizen in one operation. Same register of record, same walt.id issuer,
 same credential — eligibility is encoded as the view's `WHERE` clause
