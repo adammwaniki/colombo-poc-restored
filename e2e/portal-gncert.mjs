@@ -1,0 +1,18 @@
+import puppeteer from "puppeteer";
+const b=await puppeteer.launch({headless:"new",args:["--no-sandbox","--disable-setuid-sandbox"]});
+const p=await b.newPage();
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+await p.goto("https://sunbird-rc.in-labs.cdpi.dev/admin/",{waitUntil:"networkidle2",timeout:30000});
+await wait(3500);
+const rows=await p.evaluate(()=>document.querySelectorAll("#rows tr").length);
+console.log("table rows:",rows);
+const clicked=await p.evaluate(()=>{const x=[...document.querySelectorAll("button")].find(b=>b.textContent.trim()=="GN cert");if(x){x.click();return true}return false});
+console.log("clicked GN cert button:",clicked);
+await wait(3500);
+const title=await p.evaluate(()=>document.getElementById("certTitle")?.textContent||"");
+console.log("dialog title:",title);
+await p.evaluate(()=>{const x=[...document.querySelectorAll("button")].find(b=>b.textContent.trim()=="Issue GN certificate");if(x)x.click()});
+await wait(7000);
+console.log("certMsg:",(await p.evaluate(()=>document.getElementById("certMsg")?.textContent||"")).slice(0,90));
+console.log("list shows verified:",(await p.evaluate(()=>document.getElementById("certList")?.textContent||"")).includes("verified"));
+await b.close();

@@ -69,8 +69,36 @@
   <div id="dlgmsg" class="muted"></div>
 </dialog>
 
+<dialog id="certDlg">
+  <h3 id="certTitle" style="margin:.2rem 0 .2rem">GN certificates</h3>
+  <div class="muted" style="margin-bottom:.6rem">Sunbird-native issuance — the Grama Niladhari signs a certificate VC; the registry retains it (verify by API, no presentation needed).</div>
+  <div id="certList" class="muted">Loading…</div>
+  <div class="bar" style="justify-content:flex-end;margin-top:1rem">
+    <button class="sec" onclick="certDlg.close()">Close</button>
+    <button onclick="issueCert()">Issue GN certificate</button>
+  </div>
+  <div id="certMsg" class="muted"></div>
+</dialog>
+
 <script>
 const API="/api/v1/Person";           // same-origin -> Caddy routes to the registry
+let certNid=null;
+function openCerts(nid,name){certNid=nid;certTitle.textContent="GN certificates — "+name+" ("+nid+")";certMsg.textContent="";certList.innerHTML="Loading…";certDlg.showModal();loadCerts()}
+async function loadCerts(){
+  let r={}; try{r=await (await fetch("/issuer/list?nationalId="+encodeURIComponent(certNid))).json()}catch(e){certList.textContent="issuer-api unreachable";return}
+  let cs=r.credentials||[];
+  certList.innerHTML=cs.length?cs.map(c=>{
+    let ok=c.checks&&c.checks[0]&&c.checks[0].proof=="OK";
+    return `<div style="padding:.4rem 0;border-bottom:1px solid #eee;font-size:.82rem">
+      <div><b>${esc(c.status)}</b> ${ok?'<span class=tag>verified ✓</span>':''}</div>
+      <div class=muted style="word-break:break-all">${esc(c.credentialId)}</div></div>`}).join(""):'<span class=muted>No GN certificates issued yet.</span>';
+}
+async function issueCert(){
+  certMsg.textContent="Issuing…";
+  let r={}; try{r=await (await fetch("/issuer/issue",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nationalId:certNid})})).json()}catch(e){certMsg.textContent="issuer-api unreachable";return}
+  certMsg.textContent=r.ok?("Issued ✓ "+r.credentialId):("Failed: "+(r.error||"unknown"));
+  if(r.ok) loadCerts();
+}
 const FIELDS=["nationalId","pin","givenName","familyName","gender","dateOfBirth","region","country","email","phone","isCultivator","farmId","farmSizeHectares","primaryCrops"];
 let editingOsid=null;
 
@@ -92,7 +120,10 @@ async function load(){
       <td>${esc(p.region)}</td><td>${esc(p.country)}</td>
       <td>${p.isCultivator?'<span class=tag>cultivator</span>':''}</td>
       <td>${esc(p.farmId)}</td><td>${esc(p.primaryCrops)}</td>
-      <td><button class=sec onclick='edit(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Edit</button></td>
+      <td style="white-space:nowrap">
+        <button class=sec onclick='edit(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Edit</button>
+        <button class=sec onclick='openCerts("${esc(p.nationalId)}","${esc(p.fullName).replace(/'/g,"&#39;")}")'>GN cert</button>
+      </td>
     </tr>`).join("")||'<tr><td colspan=9 class=muted>No records.</td></tr>';
 }
 function esc(s){return (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}

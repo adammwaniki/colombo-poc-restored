@@ -82,6 +82,21 @@ search= POST credential:3000/credentials/search {subject:{id}}   -> the citizen'
 The last two are the **track-4 pattern**: an agency trusts the credential by API call,
 no VC presentation needed; the signed VC still goes to the citizen's wallet.
 
+## Portal issuance ("Issue GN certificate" button)
+
+`scripts/gn_issuer_api.py` (container `gn-issuer-api`, on `sunbird-rc_default`,
+published `:8091`) self-bootstraps a **persistent** GN issuer DID + schema
+(`issuer-state/gn-issuer.json`) and exposes `POST /issuer/issue {nationalId}`,
+`GET /issuer/list?nationalId=`. Caddy routes `sunbird-rc.in-labs.cdpi.dev/issuer/*`
+to it — same-origin with `/admin` (the portal) and `/api/v1` (the registry). The
+registry-admin portal's per-row **"GN cert"** button calls it; proven headless
+(`e2e/portal-gncert.mjs`): GN cert → Issue → signed VC + verified ✓.
+
+> **Gotcha:** the issuer-api must be a docker-**published** port, NOT `--network host`.
+> `caddy-public` reaches it via `host.docker.internal:8091`, and a host-network
+> process on the host's INPUT chain is blocked by **ufw** (default-deny). Published
+> ports bypass ufw via the DOCKER chains (same reason the registry's `:18091` works).
+
 ## Unseal (after any reboot / vault restart)
 
 ```bash

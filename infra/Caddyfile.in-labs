@@ -56,6 +56,10 @@ sunbird-rc.in-labs.cdpi.dev {
 		reverse_proxy registry-admin:80
 	}
 	redir /admin /admin/
+	# /issuer -> the GN issuer-api (Sunbird-native issuance behind the portal button)
+	handle /issuer/* {
+		reverse_proxy host.docker.internal:8091
+	}
 	handle {
 		reverse_proxy host.docker.internal:18091
 	}
