@@ -71,3 +71,11 @@ sunbird-rc.in-labs.cdpi.dev {
 		reverse_proxy host.docker.internal:18091
 	}
 }
+
+# Inji Verify (MOSIP) — workshop verifier we control (standalone compose at
+# /root/colombo-poc/inji-verify, see infra/inji-verify/). UI published on
+# host:3011, reached over host-gateway; the UI nginx proxies /v1/verify to
+# inji-verify-service. did:web issuers resolve over public HTTPS (real LE cert).
+inji-verify.in-labs.cdpi.dev {
+	reverse_proxy host.docker.internal:3011
+}

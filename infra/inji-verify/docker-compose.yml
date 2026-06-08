@@ -1,0 +1,83 @@
+# Standalone Inji Verify (MOSIP) — workshop verifier we control.
+#
+# Why standalone (not `deploy.sh up inji`): the live workshop stack is walt.id +
+# eSignet + Sunbird; the full `inji` scenario would drag in Inji Certify/Web/WSO2
+# and recreate networks. This brings up ONLY the three Verify services on their
+# own project network (`inji-verify_default`), published on host ports so the
+# shared `caddy-public` reaches the UI over host-gateway — the same pattern as
+# the Sunbird issuer-api (:8091).
+#
+# Routed at https://inji-verify.in-labs.cdpi.dev (A record -> 156.67.105.185).
+# The UI's nginx proxies /v1/verify -> inji-verify-service:8080 on this network.
+#
+# NB: the certify self-signed-cert keytool imports from the stack compose are
+# dropped here — we only resolve OUR did:web issuers, which carry a real
+# Let's Encrypt cert that Java already trusts.
+
+name: inji-verify
+
+services:
+  inji-verify-postgres:
+    image: postgres:13
+    restart: unless-stopped
+    container_name: inji-verify-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inji_verify
+    volumes:
+      - inji-verify-db:/var/lib/postgresql/data
+      - ./init-verify-schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  inji-verify-service:
+    image: mosipid/inji-verify-service:0.16.0
+    restart: unless-stopped
+    container_name: inji-verify-service
+    user: root
+    environment:
+      - active_profile_env=default
+      - DATABASE_HOST=inji-verify-postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=inji_verify
+      - DATABASE_SCHEMA=verify
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - INJI_VP_SUBMISSION_BASE_URL=https://inji-verify.in-labs.cdpi.dev/v1/verify
+      - INJI_DID_VERIFY_URI=did:web:inji-verify.in-labs.cdpi.dev:v1:verify
+      - INJI_DID_VERIFY_PUBLIC_KEY_URI=did:web:inji-verify.in-labs.cdpi.dev:v1:verify#key-0
+    ports:
+      - "8082:8080"
+    depends_on:
+      inji-verify-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/v1/verify/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      start_period: 150s
+      retries: 20
+
+  inji-verify-ui:
+    image: mosipid/inji-verify-ui:0.16.0
+    restart: unless-stopped
+    container_name: inji-verify-ui
+    environment:
+      - DEFAULT_TITLE=Inji Verify
+      - DEFAULT_LANG=en
+      - VERIFIABLE_CLAIMS_CONFIG_URL=/assets/config.json
+      - VP_SUBMISSION_SUPPORTED=false
+      - DISPLAY_TIMEOUT=120000
+    volumes:
+      - ./verify-ui-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "3011:8000"
+    depends_on:
+      - inji-verify-service
+
+volumes:
+  inji-verify-db:

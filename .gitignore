@@ -50,3 +50,6 @@ auth-providers.user.json
 # Salvage staging
 _salvage.tgz
 _quarantine/
+
+# node deps (e2e tests resolve puppeteer via an npx-cache symlink at runtime)
+node_modules/
