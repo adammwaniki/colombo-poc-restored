@@ -12,6 +12,58 @@ consolidated on walt.id; Sunbird RC is the register of record only.
 
 ---
 
+## Operational runbook — live hosts & click-paths
+
+Everything is on public HTTPS. The internal service ports named in the component
+table below map to these hosts:
+
+| Host | What it is | Who uses it |
+|---|---|---|
+| **`vc.in-labs.cdpi.dev`** | **verifiably** — Issuer / Holder / Verifier, backed by walt.id | officer, citizen, relying party |
+| `signup.in-labs.cdpi.dev` | self-registration (email-OTP) → creates a Sunbird `Person` | citizen |
+| `sunbird-rc.in-labs.cdpi.dev/admin/` | registry admin portal — Person register + Sunbird-native issuance (PDF + QR) | officer |
+| `inji-verify.in-labs.cdpi.dev` | Inji Verify — scan/upload a QR to verify | relying party |
+| `esignet.in-labs.cdpi.dev` | eSignet OIDC — National ID + PIN (the login tile) | citizen |
+
+Backend-only (not visited directly): `walt-issuer`, `walt-verifier`, `keycloak`,
+`wso2` `.in-labs.cdpi.dev`. **Browser tip:** one login at a time; use a fresh
+Incognito window per person (stale half-finished logins cause "Auth state mismatch").
+
+### Three reusable steps
+
+All three roles are at **`vc.in-labs.cdpi.dev`**; sign in via the **eSignet** tile
+(National ID `80000006` / PIN `100005`).
+
+- **ISSUE** → *Issuer* → DPG **Walt Community Stack** → pick the schema → *Enter
+  manually* → fill fields → **Issue credential** → OID4VCI offer (QR + link).
+- **HOLD** → *Holder* → wallet **API-based** → paste/scan the offer → credential lands.
+- **VERIFY** → *Verifier* → *Request a presentation · OID4VP* → pick type + tick
+  fields + keep policies on → **Generate** → open the `openid4vp://…` link in the
+  Holder wallet → **✓ Credential valid**.
+
+### Per use case — what to issue/verify (mechanics identical; only the schema changes)
+
+**1 · Fertilizer subsidy** — register the farmer (`signup` or `…/admin/`), then:
+- *1A Enrolment:* **ISSUE + HOLD** `CultivatorCredential`.
+- *1B Seasonal claim:* **VERIFY** `CultivatorCredential` → **ISSUE + HOLD**
+  `FertilizerVoucher` → depot **VERIFY** before redeeming.
+
+**2 · Business permit** — register the proprietor, then:
+- *2A Prerequisites:* **ISSUE + HOLD** `AddressProofCredential`,
+  `TaxRegistrationCredential`, and (regulated trades only) `SectorApprovalCredential`.
+- *2B Registration:* **VERIFY** the prerequisites → **ISSUE + HOLD** `BusinessPermitCredential`.
+
+### Alternative track — registry-of-record + Inji Verify (Sunbird-native)
+
+Issue a PDF + QR from `sunbird-rc.in-labs.cdpi.dev/admin/` → **Credentials**, then
+verify by uploading the QR at `inji-verify.in-labs.cdpi.dev`, or have an agency
+trust it by API (`/credentials/{id}/verify`). Use this for the "scan a paper QR" /
+"registry-as-record" story; the walt.id path above is the wallet OID4VCI/OID4VP story.
+
+The detailed design (actors, components, sample schemas, bulk path) follows.
+
+---
+
 ## The five MVP components (as deployed)
 
 | Lifecycle step | Component | In this deployment |
