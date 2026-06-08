@@ -91,3 +91,13 @@ inji-verify.in-labs.cdpi.dev {
 signup.in-labs.cdpi.dev {
 	reverse_proxy host.docker.internal:8090
 }
+
+# walt.id holder wallet (demo-wallet 0.18.2, version-matched to wallet-api:0.18.2;
+# standalone container on waltid_default). Same-origin pattern from upstream: the
+# Nuxt UI is served at /, and the wallet-api backend is proxied at /wallet-api/*.
+# (Full OIDC login still needs WALLET_OIDC_PUBLIC_BASE_URL on wallet-api set to
+# this host + the Keycloak vcplatform redirect URI; eSignet SSO is brokered after.)
+wallet.in-labs.cdpi.dev {
+	reverse_proxy /wallet-api/* wallet-api:7001
+	reverse_proxy waltid-demo-wallet:7104
+}
