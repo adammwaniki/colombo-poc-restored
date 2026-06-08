@@ -79,3 +79,15 @@ sunbird-rc.in-labs.cdpi.dev {
 inji-verify.in-labs.cdpi.dev {
 	reverse_proxy host.docker.internal:3011
 }
+
+# Self-registration (email-OTP) — the colombo-signup service. It runs on the
+# HOST network (binds 0.0.0.0:8090) and talks to Sunbird + Mailpit over
+# localhost, so it is NOT a published docker port; caddy-public reaches it over
+# host-gateway only after a ufw allow for the docker subnets:
+#   ufw allow from 172.16.0.0/12 to any port 8090 proto tcp
+# Writes a Person into the Sunbird register. NOTE: the OTP email goes to Mailpit
+# (loopback catcher) — external users can't receive it until a real SMTP relay
+# is wired (or the Mailpit inbox is exposed).
+signup.in-labs.cdpi.dev {
+	reverse_proxy host.docker.internal:8090
+}
