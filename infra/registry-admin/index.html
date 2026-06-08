@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sunbird Registry Admin — Person</title>
+<style>
+ body{font-family:system-ui,Segoe UI,sans-serif;margin:0;color:#1a1a1a;background:#f6f7f9}
+ header{background:#0b5; background:#114b5f;color:#fff;padding:.8rem 1.2rem;display:flex;align-items:center;gap:1rem}
+ header h1{font-size:1.05rem;margin:0;font-weight:600}
+ header small{opacity:.8}
+ main{max-width:1200px;margin:1rem auto;padding:0 1rem}
+ .bar{display:flex;gap:.5rem;align-items:center;margin:.6rem 0;flex-wrap:wrap}
+ input,select,button{padding:.45rem .55rem;border:1px solid #ccc;border-radius:6px;font-size:.9rem}
+ button{background:#114b5f;color:#fff;border:0;cursor:pointer}
+ button.sec{background:#e7eaec;color:#114b5f}
+ table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px #0001}
+ th,td{padding:.5rem .6rem;text-align:left;border-bottom:1px solid #eee;font-size:.85rem}
+ th{background:#eef1f3;font-weight:600}
+ tr:hover{background:#f9fbfc}
+ .tag{font-size:.72rem;padding:.1rem .4rem;border-radius:10px;background:#e6f4ea;color:#136c33}
+ dialog{border:0;border-radius:10px;padding:1.2rem;max-width:520px;width:92%;box-shadow:0 10px 40px #0003}
+ dialog label{display:block;margin:.5rem 0 .15rem;font-size:.78rem;color:#555}
+ dialog input,dialog select{width:100%;box-sizing:border-box}
+ .row2{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+ .muted{color:#888;font-size:.8rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sunbird Registry Admin</h1><small>Person register of record · v2.0.1</small>
+  <span style="flex:1"></span>
+  <small id="count"></small>
+</header>
+<main>
+  <div class="bar">
+    <input id="q" placeholder="filter by district (region), blank = all" style="min-width:240px">
+    <button onclick="load()">Search</button>
+    <button class="sec" onclick="openForm()">+ New Person</button>
+    <span class="muted">Edits write straight to the registry (Postgres + Elasticsearch).</span>
+  </div>
+  <table>
+    <thead><tr><th>National ID</th><th>Name</th><th>Gender</th><th>District</th><th>Country</th><th>Cultivator</th><th>Farm</th><th>Crops</th><th></th></tr></thead>
+    <tbody id="rows"><tr><td colspan="9" class="muted">Loading…</td></tr></tbody>
+  </table>
+</main>
+
+<dialog id="dlg">
+  <h3 id="dlgt" style="margin:.2rem 0 .6rem">New Person</h3>
+  <div class="row2">
+    <div><label>National ID</label><input id="f_nationalId"></div>
+    <div><label>PIN</label><input id="f_pin"></div>
+    <div><label>Given name</label><input id="f_givenName"></div>
+    <div><label>Family name</label><input id="f_familyName"></div>
+    <div><label>Gender</label><select id="f_gender"><option>Male</option><option>Female</option></select></div>
+    <div><label>Date of birth</label><input id="f_dateOfBirth" placeholder="1990/01/01"></div>
+    <div><label>District (region)</label><input id="f_region"></div>
+    <div><label>Country</label><input id="f_country" value="Sri Lanka"></div>
+    <div><label>Email</label><input id="f_email"></div>
+    <div><label>Phone</label><input id="f_phone"></div>
+    <div><label>Cultivator</label><select id="f_isCultivator"><option value="false">No</option><option value="true">Yes</option></select></div>
+    <div><label>Farm ID</label><input id="f_farmId"></div>
+    <div><label>Farm size (ha)</label><input id="f_farmSizeHectares" type="number"></div>
+    <div><label>Primary crops</label><input id="f_primaryCrops"></div>
+  </div>
+  <div class="bar" style="justify-content:flex-end;margin-top:1rem">
+    <button class="sec" onclick="dlg.close()">Cancel</button>
+    <button onclick="save()">Save</button>
+  </div>
+  <div id="dlgmsg" class="muted"></div>
+</dialog>
+
+<script>
+const API="/api/v1/Person";           // same-origin -> Caddy routes to the registry
+const FIELDS=["nationalId","pin","givenName","familyName","gender","dateOfBirth","region","country","email","phone","isCultivator","farmId","farmSizeHectares","primaryCrops"];
+let editingOsid=null;
+
+async function api(path,method,body){
+  const r=await fetch(path,{method,headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+  const t=await r.text(); let j={}; try{j=JSON.parse(t)}catch(e){}
+  if(!r.ok) throw new Error("HTTP "+r.status+" "+t.slice(0,120));
+  return j;
+}
+async function load(){
+  const region=q.value.trim();
+  const filters=region?{region:{eq:region}}:{};
+  let res; try{res=await api(API+"/search","POST",{filters,limit:200})}catch(e){rows.innerHTML='<tr><td colspan=9 class=muted>'+e.message+'</td></tr>';return}
+  const data=Array.isArray(res)?res:(res.data||[]);
+  count.textContent=data.length+" record(s)";
+  rows.innerHTML=data.sort((a,b)=>(a.nationalId||"").localeCompare(b.nationalId||"")).map(p=>`
+    <tr>
+      <td>${esc(p.nationalId)}</td><td>${esc(p.fullName)}</td><td>${esc(p.gender)}</td>
+      <td>${esc(p.region)}</td><td>${esc(p.country)}</td>
+      <td>${p.isCultivator?'<span class=tag>cultivator</span>':''}</td>
+      <td>${esc(p.farmId)}</td><td>${esc(p.primaryCrops)}</td>
+      <td><button class=sec onclick='edit(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Edit</button></td>
+    </tr>`).join("")||'<tr><td colspan=9 class=muted>No records.</td></tr>';
+}
+function esc(s){return (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+function openForm(){editingOsid=null;dlgt.textContent="New Person";FIELDS.forEach(f=>{const el=document.getElementById("f_"+f);if(el)el.value=(f=="country"?"Sri Lanka":(f=="isCultivator"?"false":""))});dlgmsg.textContent="";dlg.showModal()}
+function edit(p){editingOsid=p.osid;dlgt.textContent="Edit "+(p.fullName||p.nationalId);FIELDS.forEach(f=>{const el=document.getElementById("f_"+f);if(el)el.value=(p[f]==null?"":p[f])});dlgmsg.textContent="osid "+p.osid;dlg.showModal()}
+async function save(){
+  const g=id=>document.getElementById("f_"+id).value.trim();
+  const rec={nationalId:g("nationalId"),pin:g("pin"),password:g("pin"),
+    givenName:g("givenName"),familyName:g("familyName"),fullName:(g("givenName")+" "+g("familyName")).trim(),
+    gender:g("gender"),dateOfBirth:g("dateOfBirth"),region:g("region"),country:g("country"),
+    email:g("email"),phone:g("phone"),isCultivator:g("isCultivator")==="true",
+    farmId:g("farmId"),primaryCrops:g("primaryCrops")};
+  const fs=g("farmSizeHectares"); if(fs) rec.farmSizeHectares=Number(fs);
+  try{
+    if(editingOsid) await api(API+"/"+editingOsid,"PUT",rec);
+    else await api(API,"POST",rec);
+    dlg.close(); load();
+  }catch(e){dlgmsg.textContent="Save failed: "+e.message}
+}
+load();
+</script>
+</body>
+</html>

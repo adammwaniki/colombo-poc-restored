@@ -50,5 +50,13 @@ wso2.in-labs.cdpi.dev {
 # access to the Person register. Front it with auth or drop this site for a real
 # deployment.
 sunbird-rc.in-labs.cdpi.dev {
-	reverse_proxy host.docker.internal:18091
+	# /admin -> the registry admin portal (static); everything else -> registry API.
+	# Same-origin so the portal's /api/v1/... calls need no CORS.
+	handle_path /admin/* {
+		reverse_proxy registry-admin:80
+	}
+	redir /admin /admin/
+	handle {
+		reverse_proxy host.docker.internal:18091
+	}
 }
