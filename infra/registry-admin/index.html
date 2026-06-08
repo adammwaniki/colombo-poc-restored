@@ -36,6 +36,8 @@
  .cid{word-break:break-all;font-size:.7rem;color:#aaa}
  pre{background:#0b1f27;color:#cfe;padding:.8rem;border-radius:8px;overflow:auto;max-height:55vh;font-size:.75rem}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 </head>
 <body>
 <header>
@@ -186,7 +188,8 @@ async function loadCerts(){
         <span class="muted">issued ${esc((c.issuanceDate||'').slice(0,10))}</span></div>
       <div class="cid">${esc(c.credentialId)}</div>
       <div class="ca">
-        <button class="sec" onclick='downloadVC("${esc(c.credentialId)}","${esc(s.holder||"credential")}")'>⬇ Download</button>
+        <button onclick='downloadPDF("${esc(c.credentialId)}","${esc(c.type||"")}")'>⬇ Certificate (PDF + QR)</button>
+        <button class="sec" onclick='downloadVC("${esc(c.credentialId)}","${esc(s.holder||"credential")}")'>JSON</button>
         <button class="sec" onclick='showVC("${esc(c.credentialId)}")'>View</button>
       </div>
     </div>`}).join("") : '<div class="muted">None yet — use the buttons above to issue one.</div>';
@@ -199,6 +202,51 @@ async function downloadVC(id,holder){
   a.download=String(holder).replace(/\s+/g,"_")+"-gn-certificate.json"; a.click();
 }
 async function showVC(id){vcPre.textContent=JSON.stringify(await fetchVC(id),null,2);vcDlg.showModal()}
+
+// ---- PDF certificate with a machine-readable signed QR (client-side) ----
+const FIELD_LABELS={holder:"Holder",nationalId:"National ID",address:"Address",gnDivision:"GN division",verifiedOn:"Verified on",
+  farmId:"Farm ID",location:"Location",hectares:"Land (ha)",crops:"Crops",registeredOn:"Registered on",season:"Season",crop:"Crop",
+  entitlementKg:"Entitlement (kg)",voucherId:"Voucher ID",validUntil:"Valid until",businessName:"Business name",businessType:"Business type",
+  permitId:"Permit ID",issuedOn:"Issued on"};
+function typeMeta(k){return TYPES.find(t=>t.key===k)||{}}
+function qrPNG(text){
+  let qr; try{qr=qrcode(0,'L');qr.addData(text);qr.make();}catch(e){return null}
+  const n=qr.getModuleCount(),cell=3,m=cell*4,size=n*cell+m*2;
+  const cv=document.createElement('canvas');cv.width=cv.height=size;const x=cv.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,size,size);x.fillStyle='#000';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.isDark(r,c))x.fillRect(m+c*cell,m+r*cell,cell,cell);
+  return cv.toDataURL('image/png');
+}
+function buildPDF(vc,typeKey){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'pt',format:'a4'}); const W=doc.internal.pageSize.getWidth();
+  const s=vc.credentialSubject||{}; const m=typeMeta(typeKey);
+  doc.setFillColor(17,75,95);doc.rect(0,0,W,72,'F');
+  doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text(m.issuer||'Government of Sri Lanka',40,34);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text('Democratic Socialist Republic of Sri Lanka',40,52);
+  doc.setTextColor(17,75,95);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(m.label||'Verifiable Credential',40,112);
+  doc.setDrawColor(205);doc.line(40,122,W-40,122);
+  let y=152;doc.setFontSize(11);
+  const order=['holder','nationalId'];const keys=[...order,...Object.keys(s).filter(k=>k!=='id'&&!order.includes(k))];
+  keys.forEach(k=>{if(s[k]==null||s[k]==='')return;
+    doc.setTextColor(120);doc.setFont('helvetica','normal');doc.text((FIELD_LABELS[k]||k)+':',40,y);
+    doc.setTextColor(20);doc.setFont('helvetica','bold');doc.text(String(s[k]),150,y,{maxWidth:170});y+=22;});
+  y+=6;doc.setTextColor(120);doc.setFont('helvetica','normal');doc.setFontSize(10);
+  doc.text('Issued: '+(vc.issuanceDate||'').slice(0,10)+'      Valid until: '+(vc.expirationDate||'').slice(0,10),40,y);
+  // QR: the full signed VC (offline-verifiable), else a fetch-by-reference URL
+  let img=qrPNG(JSON.stringify(vc)),cap='Scan to verify — this QR carries the signed credential (offline-verifiable).';
+  if(!img){img=qrPNG(location.origin+'/issuer/credential?id='+encodeURIComponent(vc.id));cap='Scan to fetch & verify the signed credential.';}
+  if(img){const q=190;doc.addImage(img,'PNG',W-40-q,138,q,q);doc.setFontSize(8);doc.setTextColor(120);doc.text(cap,W-40-q,138+q+12,{maxWidth:q});}
+  let fy=doc.internal.pageSize.getHeight()-96;doc.setDrawColor(220);doc.line(40,fy,W-40,fy);fy+=15;
+  doc.setFontSize(8);doc.setTextColor(120);
+  doc.text('Issuer (DID): '+(vc.issuer||''),40,fy,{maxWidth:W-80});fy+=11;
+  doc.text('Credential ID: '+(vc.id||''),40,fy,{maxWidth:W-80});fy+=11;
+  doc.text('Digitally signed · '+((vc.proof||{}).type||'')+' · verify by scanning the QR, or via the registry API ('+location.host+'/credentials/{id}/verify).',40,fy,{maxWidth:W-80});
+  return doc;
+}
+async function downloadPDF(id,typeKey){
+  const vc=await fetchVC(id); const s=vc.credentialSubject||{};
+  buildPDF(vc,typeKey).save(String(s.holder||'credential').replace(/\s+/g,'_')+'-'+(typeKey||'vc')+'.pdf');
+}
 
 loadTypes(); reload();
 </script>
