@@ -161,6 +161,138 @@ business permit, presentable to banks, suppliers, and authorities.
 
 ---
 
+## Sample custom schemas (build these once in verifiably)
+
+These are the credential schemas the journeys above issue. walt.id's stock
+catalog has no "cultivator / voucher / permit" types, so each is a **custom
+schema** — build it once in **Issuer → Schema → Build** (or seed
+`config/custom-schemas.user.json`), then the bulk **Database** source / single
+issuance can target it.
+
+Conventions, grounded in the deployed builder:
+- **Std (interop profile).** The doc's standing choice is **HAIP — SD-JWT VC with
+  ES256**, i.e. `Std: "sd_jwt_vc"`. The box's proven walt.id path today is
+  `Std: "w3c_vcdm_2"` (W3C VCDM 2.0, `jwt_vc_json`, via the adapter's borrow);
+  swap to `sd_jwt_vc` for HAIP conformance once the catalog entry is in place.
+- **Field names are case-sensitive and MUST equal the DB-source view columns**
+  (`model-a-sunbird-db-source/sql/init-views.sql`) — `bulk.go` keys each row by
+  column name, so a mismatch silently drops the field.
+- **Datatypes** the builder offers: `string`, `number`, `integer`, `boolean`,
+  `date` (= `string`+`format:date`), `uri`. *Caveat:* the DB bulk source coerces
+  every value to a string, so numeric/date types are advisory there — use the
+  manual or API/JSON source if you need strict typing in the VC.
+- The **Source** column shows where each value comes from: a `V_Person` register
+  column (so it flows through the bulk path), a presented credential, or a
+  physical/derived step.
+
+### 1.1 `CultivatorCredential` — Fertilizer subsidy · enrolment
+Issuer attribution: *Department of Agrarian Development*. View: `vc_fertilizer_cultivator`.
+
+| Field | Type | Req | Source |
+|-------|------|-----|--------|
+| `holder` | string | ✓ | `V_Person.fullName` |
+| `nationalId` | string | ✓ | `V_Person.nationalId` |
+| `farmId` | string | ✓ | `V_Person.farmId` |
+| `location` | string |  | `V_Person.region` |
+| `hectares` | number |  | `V_Person.farmSizeHectares` |
+| `crops` | string |  | `V_Person.primaryCrops` |
+| `registeredOn` | date | ✓ | enrolment date |
+
+### 1.2 `FertilizerVoucher` — Fertilizer subsidy · seasonal claim
+Issuer attribution: *Department of Agrarian Development*. View: `vc_fertilizer_voucher`.
+
+| Field | Type | Req | Source |
+|-------|------|-----|--------|
+| `holder` | string | ✓ | `V_Person.fullName` |
+| `nationalId` | string | ✓ | `V_Person.nationalId` |
+| `farmId` | string | ✓ | `V_Person.farmId` |
+| `season` | string | ✓ | `"Yala 2026"` |
+| `crop` | string |  | `V_Person.primaryCrops` (first) |
+| `entitlementKg` | integer | ✓ | derived (`hectares × 50`; real: allocation table) |
+| `voucherId` | string | ✓ | derived (`YALA2026-<nationalId>`) |
+| `validUntil` | date | ✓ | season end |
+
+### 2.1 Prerequisite credentials — Business permit · enrolment
+The enrolment flow assembles these into the wallet first; the registration flow
+verifies them (OID4VP). Each is its own custom schema, issued by its authority.
+These are *presented*, not read from `V_Person`, so they're single-issuance
+(not bulk DB-source) credentials.
+
+**`AddressProofCredential`** — issuer *Grama Niladhari* (the GN certificate; the
+in-person address check stays physical):
+
+| Field | Type | Req | Source |
+|-------|------|-----|--------|
+| `holder` | string | ✓ | applicant name |
+| `nationalId` | string | ✓ | National ID |
+| `address` | string | ✓ | verified address |
+| `gnDivision` | string | ✓ | GN division |
+| `verifiedOn` | date | ✓ | inspection date |
+
+**`TaxRegistrationCredential`** — issuer *Inland Revenue Department*:
+
+| Field | Type | Req | Source |
+|-------|------|-----|--------|
+| `holder` | string | ✓ | taxpayer name |
+| `nationalId` | string | ✓ | National ID |
+| `tin` | string | ✓ | tax identification number |
+| `registeredOn` | date | ✓ | TIN issue date |
+
+**`SectorApprovalCredential`** — issuer *sector regulator* (only for a **regulated
+trade**, e.g. food, pharma, transport):
+
+| Field | Type | Req | Source |
+|-------|------|-----|--------|
+| `holder` | string | ✓ | applicant name |
+| `nationalId` | string | ✓ | National ID |
+| `sector` | string | ✓ | regulated sector |
+| `approvalRef` | string | ✓ | approval reference |
+| `validUntil` | date | ✓ | approval expiry |
+
+> Identity itself is **not** a custom schema here — it is asserted at runtime by
+> **eSignet** (National ID + PIN) at the top of each flow, per the MVP's "mocked
+> identity source" choice, so the credentials above bind to an already-verified
+> citizen rather than re-attesting identity.
+
+### 2.2 `BusinessPermitCredential` — Business permit · registration
+Issuer attribution: *Divisional Secretariat (Business Registration)*. View: `vc_business_permit`.
+
+| Field | Type | Req | Source |
+|-------|------|-----|--------|
+| `holder` | string | ✓ | `V_Person.fullName` (proprietor) |
+| `nationalId` | string | ✓ | `V_Person.nationalId` |
+| `businessName` | string | ✓ | business register |
+| `businessType` | string | ✓ | `"Sole Proprietorship"` |
+| `address` | string | ✓ | register / GN certificate |
+| `permitId` | string | ✓ | derived (`BP-<nationalId>`) |
+| `issuedOn` | date | ✓ | registration date |
+
+### Persisted shape (one full example)
+`Issuer → Schema → Build` writes entries like this to
+`config/custom-schemas.user.json` (`ID` is auto-assigned `custom-<base36>`;
+`Datatype:"string" + Format:"date"` is what the builder's **date** option emits):
+
+```json
+{
+  "Name": "CultivatorCredential",
+  "Std": "sd_jwt_vc",
+  "Custom": true,
+  "IssuerDisplayName": "Department of Agrarian Development",
+  "AdditionalTypes": ["CultivatorCredential"],
+  "FieldsSpec": [
+    {"Name": "holder",       "Datatype": "string",  "Format": "",     "Required": true},
+    {"Name": "nationalId",   "Datatype": "string",  "Format": "",     "Required": true},
+    {"Name": "farmId",       "Datatype": "string",  "Format": "",     "Required": true},
+    {"Name": "location",     "Datatype": "string",  "Format": "",     "Required": false},
+    {"Name": "hectares",     "Datatype": "number",  "Format": "",     "Required": false},
+    {"Name": "crops",        "Datatype": "string",  "Format": "",     "Required": false},
+    {"Name": "registeredOn", "Datatype": "string",  "Format": "date", "Required": true}
+  ]
+}
+```
+
+---
+
 ## Where the DB-source bulk path fits
 
 The journeys above are the **interactive, per-person** path (eSignet-authenticated,
