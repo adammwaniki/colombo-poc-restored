@@ -109,6 +109,29 @@ Two credential-design notes:
 > process on the host's INPUT chain is blocked by **ufw** (default-deny). Published
 > ports bypass ufw via the DOCKER chains (same reason the registry's `:18091` works).
 
+## Inji Verify interop (PixelPass QR + resolvable did:web)
+
+A raw-JSON QR fails in Inji Verify with *"invalid character at position 0"* — Inji
+runs the QR through a **base45/PixelPass** decoder first, and `{` isn't base45. And
+even decoded, our issuer `did:web` wasn't publicly resolvable, so the key couldn't
+be fetched. Both fixed:
+
+- **Resolvable did:web.** `.env` `WEB_DID_BASE_URL=https://sunbird-rc.in-labs.cdpi.dev/identity`
+  (NO trailing slash → clean `did:web:host:identity:<uuid>`, not the old `::`). Recreate
+  `identity`, re-bootstrap the issuers (`rm issuer-state/issuers.json && docker restart
+  sunbird-issuer-api`). Caddy publishes ONLY the DID docs:
+  `@diddoc path_regexp ^/identity/[^/]+/did\.json$ → strip_prefix /identity → identity:3332`.
+  Verify: `curl https://sunbird-rc.in-labs.cdpi.dev/identity/<uuid>/did.json` → the DID doc.
+- **PixelPass QR.** The portal encodes the QR with `@mosip/pixelpass`'s `generateQRData`
+  (base45(zlib(VC))) instead of raw JSON — same lib Inji decodes with (round-trip verified,
+  byte-shorter so the QR is more scannable). No browser/UMD build ships, so it's bundled with
+  esbuild → `infra/registry-admin/pixelpass.bundle.js` (rebuild: `entry.js` =
+  `import * as P from "@mosip/pixelpass"; window.PixelPass=P;` then
+  `esbuild entry.js --bundle --format=iife --platform=browser --outfile=pixelpass.bundle.js`).
+
+> Re-issue AFTER these changes — credentials minted earlier carry the old non-resolvable
+> issuer DID. The portal's `urn:gov-lk:nid:` subject search lists the new ones.
+
 ## Unseal (after any reboot / vault restart)
 
 ```bash

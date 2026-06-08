@@ -38,6 +38,7 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="pixelpass.bundle.js"></script>
 </head>
 <body>
 <header>
@@ -232,8 +233,10 @@ function buildPDF(vc,typeKey){
     doc.setTextColor(20);doc.setFont('helvetica','bold');doc.text(String(s[k]),150,y,{maxWidth:170});y+=22;});
   y+=6;doc.setTextColor(120);doc.setFont('helvetica','normal');doc.setFontSize(10);
   doc.text('Issued: '+(vc.issuanceDate||'').slice(0,10)+'      Valid until: '+(vc.expirationDate||'').slice(0,10),40,y);
-  // QR: the full signed VC (offline-verifiable), else a fetch-by-reference URL
-  let img=qrPNG(JSON.stringify(vc)),cap='Scan to verify — this QR carries the signed credential (offline-verifiable).';
+  // QR: PixelPass-encoded signed VC (the MOSIP / Inji Verify format), else raw JSON / URL
+  let payload,cap='Scan in Inji Verify (or a MOSIP wallet) — PixelPass-encoded signed credential.';
+  try{payload=window.PixelPass.generateQRData(JSON.stringify(vc))}catch(e){payload=JSON.stringify(vc);cap='Scan to verify — signed credential (raw JSON).';}
+  let img=qrPNG(payload);
   if(!img){img=qrPNG(location.origin+'/issuer/credential?id='+encodeURIComponent(vc.id));cap='Scan to fetch & verify the signed credential.';}
   if(img){const q=190;doc.addImage(img,'PNG',W-40-q,138,q,q);doc.setFontSize(8);doc.setTextColor(120);doc.text(cap,W-40-q,138+q+12,{maxWidth:q});}
   let fy=doc.internal.pageSize.getHeight()-96;doc.setDrawColor(220);doc.line(40,fy,W-40,fy);fy+=15;
