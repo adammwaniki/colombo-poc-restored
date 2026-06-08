@@ -1,0 +1,98 @@
+[
+  {
+    "Name": "CultivatorCredential",
+    "Std": "w3c_vcdm_2",
+    "Custom": true,
+    "IssuerDisplayName": "Department of Agrarian Development",
+    "AdditionalTypes": ["CultivatorCredential"],
+    "Desc": "Cultivator enrolment — fertilizer-subsidy precondition (use case 1)",
+    "FieldsSpec": [
+      {"Name": "holder",       "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "nationalId",   "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "farmId",       "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "location",     "Datatype": "string", "Format": "",     "Required": false},
+      {"Name": "hectares",     "Datatype": "number", "Format": "",     "Required": false},
+      {"Name": "crops",        "Datatype": "string", "Format": "",     "Required": false},
+      {"Name": "registeredOn", "Datatype": "string", "Format": "date", "Required": true}
+    ]
+  },
+  {
+    "Name": "FertilizerVoucher",
+    "Std": "w3c_vcdm_2",
+    "Custom": true,
+    "IssuerDisplayName": "Department of Agrarian Development",
+    "AdditionalTypes": ["FertilizerVoucher"],
+    "Desc": "Seasonal fertilizer-subsidy e-voucher (use case 1)",
+    "FieldsSpec": [
+      {"Name": "holder",        "Datatype": "string",  "Format": "",     "Required": true},
+      {"Name": "nationalId",    "Datatype": "string",  "Format": "",     "Required": true},
+      {"Name": "farmId",        "Datatype": "string",  "Format": "",     "Required": true},
+      {"Name": "season",        "Datatype": "string",  "Format": "",     "Required": true},
+      {"Name": "crop",          "Datatype": "string",  "Format": "",     "Required": false},
+      {"Name": "entitlementKg", "Datatype": "integer", "Format": "",     "Required": true},
+      {"Name": "voucherId",     "Datatype": "string",  "Format": "",     "Required": true},
+      {"Name": "validUntil",    "Datatype": "string",  "Format": "date", "Required": true}
+    ]
+  },
+  {
+    "Name": "AddressProofCredential",
+    "Std": "w3c_vcdm_2",
+    "Custom": true,
+    "IssuerDisplayName": "Grama Niladhari",
+    "AdditionalTypes": ["AddressProofCredential"],
+    "Desc": "Grama Niladhari address-proof certificate — business-permit prerequisite (use case 2)",
+    "FieldsSpec": [
+      {"Name": "holder",     "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "nationalId", "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "address",    "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "gnDivision", "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "verifiedOn", "Datatype": "string", "Format": "date", "Required": true}
+    ]
+  },
+  {
+    "Name": "TaxRegistrationCredential",
+    "Std": "w3c_vcdm_2",
+    "Custom": true,
+    "IssuerDisplayName": "Inland Revenue Department",
+    "AdditionalTypes": ["TaxRegistrationCredential"],
+    "Desc": "Tax / TIN registration — business-permit prerequisite (use case 2)",
+    "FieldsSpec": [
+      {"Name": "holder",       "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "nationalId",   "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "tin",          "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "registeredOn", "Datatype": "string", "Format": "date", "Required": true}
+    ]
+  },
+  {
+    "Name": "SectorApprovalCredential",
+    "Std": "w3c_vcdm_2",
+    "Custom": true,
+    "IssuerDisplayName": "Sector Regulator",
+    "AdditionalTypes": ["SectorApprovalCredential"],
+    "Desc": "Regulated-trade sector approval — business-permit prerequisite for regulated trades only (use case 2)",
+    "FieldsSpec": [
+      {"Name": "holder",      "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "nationalId",  "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "sector",      "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "approvalRef", "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "validUntil",  "Datatype": "string", "Format": "date", "Required": true}
+    ]
+  },
+  {
+    "Name": "BusinessPermitCredential",
+    "Std": "w3c_vcdm_2",
+    "Custom": true,
+    "IssuerDisplayName": "Divisional Secretariat (Business Registration)",
+    "AdditionalTypes": ["BusinessPermitCredential"],
+    "Desc": "Sole-proprietor business permit — registration output (use case 2)",
+    "FieldsSpec": [
+      {"Name": "holder",       "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "nationalId",   "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "businessName", "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "businessType", "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "address",      "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "permitId",     "Datatype": "string", "Format": "",     "Required": true},
+      {"Name": "issuedOn",     "Datatype": "string", "Format": "date", "Required": true}
+    ]
+  }
+]
