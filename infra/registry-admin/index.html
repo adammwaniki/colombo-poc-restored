@@ -44,13 +44,14 @@
 </header>
 <main>
   <div class="help">
-    <b>What you can do here.</b> Look up a citizen in the register, then issue them a <b>Grama Niladhari
-    certificate</b> — a digitally-signed credential proving their address. Hand it to the citizen with
-    <b>Download</b> (for their wallet); any other office can confirm it by an API call — the citizen never
-    has to present it. Edits write straight to the registry (Postgres + Elasticsearch).
+    <b>What you can do here.</b> Look up a citizen, then issue them any credential the register supports —
+    a <b>Grama Niladhari</b> address certificate, a <b>cultivator</b> credential or <b>fertilizer voucher</b>
+    (fertilizer-subsidy use case), or a <b>business permit</b> — each signed by its issuing authority. Hand it
+    to the citizen with <b>Download</b> (for their wallet); any other office confirms it by an API call — the
+    citizen never has to present it. Edits write straight to the registry (Postgres + Elasticsearch).
     <div class="steps">
-      <span class="step">1 · Find the citizen</span><span class="step">2 · Issue GN certificate</span>
-      <span class="step">3 · Download → citizen's wallet</span><span class="step">4 · Other offices verify by API</span>
+      <span class="step">1 · Find the citizen</span><span class="step">2 · Issue a credential</span>
+      <span class="step">3 · Download → wallet</span><span class="step">4 · Other offices verify by API</span>
     </div>
   </div>
   <div class="bar">
@@ -89,16 +90,18 @@
 </dialog>
 
 <dialog id="certDlg">
-  <h3 id="certTitle" style="margin:.2rem 0 .2rem">GN certificates</h3>
-  <div class="muted" style="margin-bottom:.4rem">A Grama Niladhari certificate is a signed credential of the
-    citizen's address. Issue one, then <b>Download</b> it for their wallet. Other offices confirm it by API
-    (verify / search) — no presentation needed.</div>
+  <h3 id="certTitle" style="margin:.2rem 0 .2rem">Credentials</h3>
+  <div class="muted" style="margin-bottom:.5rem">Issue any credential the register supports — each is signed by
+    its issuing authority. The registry retains it so other offices verify by API (no presentation). Download
+    hands it to the citizen's wallet.</div>
+  <div style="font-size:.78rem;color:#114b5f;font-weight:600;margin:.2rem 0 .2rem">Issue a credential</div>
+  <div id="issueBtns" class="bar" style="margin:.1rem 0 .5rem"></div>
+  <div id="certMsg" class="muted"></div>
+  <div style="font-size:.78rem;color:#114b5f;font-weight:600;margin:.6rem 0 .2rem">Held credentials</div>
   <div id="certList" class="muted">Loading…</div>
-  <div class="bar" style="justify-content:space-between;margin-top:1rem">
-    <button onclick="issueCert()">+ Issue GN certificate</button>
+  <div class="bar" style="justify-content:flex-end;margin-top:1rem">
     <button class="sec" onclick="certDlg.close()">Close</button>
   </div>
-  <div id="certMsg" class="muted"></div>
 </dialog>
 
 <dialog id="vcDlg">
@@ -138,7 +141,7 @@ function render(){
       <td>${esc(p.farmId)}</td><td>${esc(p.primaryCrops)}</td>
       <td style="white-space:nowrap">
         <button class=sec onclick='edit(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Edit</button>
-        <button onclick='openCerts("${esc(p.nationalId)}","${esc(p.fullName).replace(/'/g,"&#39;")}")'>GN cert</button>
+        <button onclick='openCerts("${esc(p.nationalId)}","${esc(p.fullName).replace(/'/g,"&#39;")}",${p.isCultivator?'true':'false'})'>Credentials</button>
       </td>
     </tr>`).join("")||'<tr><td colspan=8 class=muted>No matches for “'+esc(q.value)+'”.</td></tr>';
 }
@@ -156,31 +159,37 @@ async function save(){
   catch(e){dlgmsg.textContent="Save failed: "+e.message}
 }
 
-function openCerts(nid,name){certNid=nid;certTitle.textContent="GN certificates — "+name+" ("+nid+")";certMsg.textContent="";certList.innerHTML="Loading…";certDlg.showModal();loadCerts()}
+let TYPES=[], certCult=false;
+async function loadTypes(){try{TYPES=((await (await fetch("/issuer/types")).json()).types)||[]}catch(e){}}
+function openCerts(nid,name,isCult){certNid=nid;certCult=!!isCult;certTitle.textContent="Credentials — "+name+" ("+nid+")";certMsg.textContent="";renderIssue();certList.innerHTML="Loading…";certDlg.showModal();loadCerts()}
+function renderIssue(){
+  issueBtns.innerHTML = TYPES.filter(t=>!t.cultivatorOnly||certCult).map(t=>
+    `<button onclick='issueType("${esc(t.key)}")' title="Issuer: ${esc(t.issuer)}">+ ${esc(t.label)}</button>`).join("")
+    || '<span class="muted">No issuable credentials for this person.</span>';
+}
+async function issueType(key){
+  certMsg.textContent="Issuing…";
+  let r={}; try{r=await (await fetch("/issuer/issue",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nationalId:certNid,type:key})})).json()}catch(e){certMsg.textContent="Issuer service unreachable.";return}
+  certMsg.textContent=r.ok?("Issued ✓ "+(r.typeLabel||"")+" — Download it for the citizen's wallet; other offices can now verify by API."):("Failed: "+(r.error||"unknown"));
+  if(r.ok) loadCerts();
+}
 async function loadCerts(){
   let r={}; try{r=await (await fetch("/issuer/list?nationalId="+encodeURIComponent(certNid))).json()}catch(e){certList.textContent="Issuer service unreachable.";return}
   const cs=r.credentials||[];
   certList.innerHTML = cs.length ? cs.map(c=>{
     const ok=c.checks&&c.checks[0]&&c.checks[0].proof=="OK"; const s=c.subject||{};
+    const detail=[s.address,s.businessName,(s.season?(s.season+" · "+(s.entitlementKg||"")+"kg"):""),(s.farmId&&!s.season?("farm "+s.farmId):"")].filter(Boolean).join(" · ");
     return `<div class="cert">
-      <div class="ch">
-        <span class="${ok?'tag':'tagbad'}">${ok?'valid ✓ (signature + not revoked)':esc(c.status||'unknown')}</span>
-        <span class="muted">issued ${esc((c.issuanceDate||'').slice(0,10))}</span>
-      </div>
-      <div class="cb"><b>${esc(s.holder||'')}</b> — ${esc(s.address||'')}<br>
-        <span class="muted">${esc(s.gnDivision||'')} · verified on ${esc(s.verifiedOn||'')}</span></div>
+      <div class="ch"><span><b>${esc(c.typeLabel||'Credential')}</b></span>
+        <span class="${ok?'tag':'tagbad'}">${ok?'valid ✓':esc(c.status||'?')}</span></div>
+      <div class="cb">${esc(s.holder||'')}${detail?(' — '+esc(detail)):''}<br>
+        <span class="muted">issued ${esc((c.issuanceDate||'').slice(0,10))}</span></div>
       <div class="cid">${esc(c.credentialId)}</div>
       <div class="ca">
-        <button class="sec" onclick='downloadVC("${esc(c.credentialId)}","${esc(s.holder||"certificate")}")'>⬇ Download (for wallet)</button>
-        <button class="sec" onclick='showVC("${esc(c.credentialId)}")'>View signed credential</button>
+        <button class="sec" onclick='downloadVC("${esc(c.credentialId)}","${esc(s.holder||"credential")}")'>⬇ Download</button>
+        <button class="sec" onclick='showVC("${esc(c.credentialId)}")'>View</button>
       </div>
-    </div>`}).join("") : '<div class="muted">No certificate yet for this citizen. Click <b>“+ Issue GN certificate”</b> below.</div>';
-}
-async function issueCert(){
-  certMsg.textContent="Issuing…";
-  let r={}; try{r=await (await fetch("/issuer/issue",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nationalId:certNid})})).json()}catch(e){certMsg.textContent="Issuer service unreachable.";return}
-  certMsg.textContent=r.ok?"Issued ✓ — Download it for the citizen's wallet. Other offices can now verify it by API without a presentation.":("Failed: "+(r.error||"unknown"));
-  if(r.ok) loadCerts();
+    </div>`}).join("") : '<div class="muted">None yet — use the buttons above to issue one.</div>';
 }
 async function fetchVC(id){return await (await fetch("/issuer/credential?id="+encodeURIComponent(id))).json()}
 async function downloadVC(id,holder){
@@ -191,7 +200,7 @@ async function downloadVC(id,holder){
 }
 async function showVC(id){vcPre.textContent=JSON.stringify(await fetchVC(id),null,2);vcDlg.showModal()}
 
-reload();
+loadTypes(); reload();
 </script>
 </body>
 </html>

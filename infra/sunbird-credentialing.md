@@ -82,15 +82,27 @@ search= POST credential:3000/credentials/search {subject:{id}}   -> the citizen'
 The last two are the **track-4 pattern**: an agency trusts the credential by API call,
 no VC presentation needed; the signed VC still goes to the citizen's wallet.
 
-## Portal issuance ("Issue GN certificate" button)
+## Portal issuance — multi-credential (both SAR use cases)
 
-`scripts/gn_issuer_api.py` (container `gn-issuer-api`, on `sunbird-rc_default`,
-published `:8091`) self-bootstraps a **persistent** GN issuer DID + schema
-(`issuer-state/gn-issuer.json`) and exposes `POST /issuer/issue {nationalId}`,
-`GET /issuer/list?nationalId=`. Caddy routes `sunbird-rc.in-labs.cdpi.dev/issuer/*`
-to it — same-origin with `/admin` (the portal) and `/api/v1` (the registry). The
-registry-admin portal's per-row **"GN cert"** button calls it; proven headless
-(`e2e/portal-gncert.mjs`): GN cert → Issue → signed VC + verified ✓.
+`scripts/sunbird_issuer_api.py` (container `sunbird-issuer-api`, on `sunbird-rc_default`,
+published `:8091`, state `issuer-state/issuers.json`) self-bootstraps a persistent
+issuer DID + schema for **four** credential types — `gn-cert` (Grama Niladhari),
+`cultivator` + `fertilizer-voucher` (Dept of Agrarian Development; fertilizer-subsidy
+use case), `business-permit` (Divisional Secretariat). Endpoints: `GET /issuer/types`,
+`POST /issuer/issue {nationalId,type}`, `GET /issuer/list?nationalId=`,
+`GET /issuer/credential?id=`. Caddy routes `sunbird-rc.in-labs.cdpi.dev/issuer/*` to it
+(same-origin with `/admin` + `/api/v1`). The portal's per-row **"Credentials"** button
+shows the types issuable for that citizen (cultivator-only types gated on `isCultivator`),
+lists held credentials by type, and downloads the signed VC. Proven headless
+(`e2e/portal-multi.mjs`).
+
+Two credential-design notes:
+- **credential `id` is `did:<method>:<uuid>`** — Sunbird v2 hardcodes this (an explicit
+  `credential.id` in the issue body is ignored; omitting `method` 400s). We pass a clean
+  per-type `method` (`gncert`/`cultivator`/`fertilizervoucher`/`businesspermit`); the
+  `did:` prefix and UUID are Sunbird's. A `urn:uuid`/URL id would need an upstream change.
+- **subject `id` is `urn:gov-lk:nid:<nid>`** (a proper URN, accepted by Sunbird) — not the
+  old `did:example:` placeholder. `nationalId` is also kept as an explicit claim.
 
 > **Gotcha:** the issuer-api must be a docker-**published** port, NOT `--network host`.
 > `caddy-public` reaches it via `host.docker.internal:8091`, and a host-network
