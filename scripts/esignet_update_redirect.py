@@ -1,6 +1,6 @@
 import json, urllib.request, urllib.error, datetime, http.cookiejar
 ESIGNET="http://localhost:8088/v1/esignet"
-REDIRECTS=["http://localhost:8080/auth/callback","http://156.67.105.185:8080/auth/callback"]
+REDIRECTS=["http://localhost:8080/auth/callback","http://156.67.105.185:8080/auth/callback","https://vc.in-labs.cdpi.dev/auth/callback"]
 now=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.")+"000Z"
 body={"requestTime":now,"request":{"clientName":"Verifiably","logoUri":"https://avatars.githubusercontent.com/u/0",
   "redirectUris":REDIRECTS,

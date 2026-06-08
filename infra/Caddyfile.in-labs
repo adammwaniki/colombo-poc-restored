@@ -11,6 +11,16 @@
 	email zumimzam@gmail.com
 }
 
+# verifiably operator app.
+vc.in-labs.cdpi.dev {
+	reverse_proxy verifiably-go:8080
+}
+
+# Keycloak (verifiably realm vcplatform — admin console + OIDC).
+keycloak.in-labs.cdpi.dev {
+	reverse_proxy keycloak:8180
+}
+
 # walt.id OID4VCI issuer — the credential offers external wallets fetch.
 walt-issuer.in-labs.cdpi.dev {
 	reverse_proxy issuer-api:7002
