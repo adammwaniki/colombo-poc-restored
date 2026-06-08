@@ -8,6 +8,9 @@ created in the Sunbird registry, immediately usable for eSignet login.
 
 Env: SUNBIRD_URL (default http://localhost:18091), SMTP_HOST/SMTP_PORT
 (default localhost:1025 = Mailpit), OTP_FROM (default no-reply@in-labs.cdpi.dev).
+For a real relay (e.g. SendGrid): SMTP_HOST=smtp.sendgrid.net SMTP_PORT=587
+SMTP_STARTTLS=1 SMTP_USER=apikey SMTP_PASS=<api-key>, and OTP_FROM must be a
+VERIFIED sender (domain-authenticated or single-sender-verified) in the relay.
 Serves on :8090.
 """
 import http.server, json, urllib.request, urllib.error, secrets, time, os, smtplib
@@ -16,6 +19,9 @@ from email.message import EmailMessage
 SUNBIRD = os.environ.get("SUNBIRD_URL", "http://localhost:18091")
 SMTP_HOST = os.environ.get("SMTP_HOST", "localhost")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "1025"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+SMTP_STARTTLS = os.environ.get("SMTP_STARTTLS", "0").lower() in ("1", "true", "yes")
 OTP_FROM = os.environ.get("OTP_FROM", "no-reply@in-labs.cdpi.dev")
 OTPS = {}
 
@@ -30,7 +36,13 @@ def send_email(to, otp):
     msg["From"] = OTP_FROM
     msg["To"] = to
     msg.set_content(f"Your verification code is {otp}\n\nIt expires in 5 minutes.")
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as s:
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as s:
+        s.ehlo()
+        if SMTP_STARTTLS:
+            s.starttls()
+            s.ehlo()
+        if SMTP_USER:
+            s.login(SMTP_USER, SMTP_PASS)
         s.send_message(msg)
 
 
