@@ -186,21 +186,25 @@ permit, presentable to banks, suppliers, and authorities.
 
 ## Federated registries — sources of truth + per-registry OpenAPI
 
-Each authority runs its **own** registry (a standalone service, its own store, and
-OpenAPI/Swagger at `/docs`). This is the **data-exchange-without-VCs** path: a
-relying party confirms a fact by querying the owning registry directly — an
-alternative to an OID4VP presentation. (DNS: wildcard `*.registry.in-labs.cdpi.dev`.)
+Each authority runs its **own** registry (a standalone service, its own store, a
+browseable **admin UI at the host root**, and OpenAPI/Swagger at `/docs`). This is
+the **data-exchange-without-VCs** path: a relying party confirms a fact by querying
+the owning registry directly — an alternative to an OID4VP presentation. (DNS:
+wildcard `*.registry.in-labs.cdpi.dev`.)
 
-| Registry host | Authority | Holds | Docs | Example no-VC call |
+| Registry host | Authority | Holds | UI / docs | Example no-VC call |
 |---|---|---|---|---|
-| `dad.registry…` | Dept of Agrarian Development | cultivator / land records | `…/docs` | `GET /cultivators/80000006` → cultivation status |
-| `grama-niladhari.registry…` | e-Grama Niladhari | address attestations | `…/docs` | `GET /attestations/80000001` → verified address |
-| `business.registry…` | Divisional Secretariat | business-name register | `…/docs` | `GET /businesses?q=<name>` (uniqueness) · `GET /businesses/BP-80000001` (permit) |
+| `dad.registry…` | Dept of Agrarian Development | cultivator / land records | `/` admin · `/docs` | `GET /cultivators/80000006` → cultivation status |
+| `grama-niladhari.registry…` | e-Grama Niladhari | address attestations | `/` admin · `/docs` | `GET /attestations/80000001` → verified address |
+| `business.registry…` | Divisional Secretariat | business-name register | `/` admin · `/docs` | `GET /businesses?q=<name>` (uniqueness) · `GET /businesses/BP-80000001` (permit) |
 
-Each exposes `GET /<entity>` (list + `?q=` search), `GET /<entity>/{key}`
-(authoritative lookup), `POST /<entity>` (write), `GET /health`. Identity stays
-with eSignet / the National ID anchor; these registries hold the agency-specific
-facts the journeys check. Code: `infra/registries/`.
+Each exposes a record table + live search + add-record form at the **host root**
+(like `sunbird-rc…/admin/`), plus the API: `GET /<entity>` (list + `?q=` search),
+`GET /<entity>/{key}` (authoritative lookup), `POST /<entity>` (write),
+`GET /<entity>/issuance` (schema-shaped rows for bulk issuance — see *Bulk
+issuance*), `GET /health`, `/docs` (Swagger), `/redoc`. Identity stays with eSignet /
+the National ID anchor; these registries hold the agency-specific facts the
+journeys check. Code: `infra/registries/`.
 
 ---
 

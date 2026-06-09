@@ -19,6 +19,8 @@ scripts/        one-shot Python helpers (stdlib only)
 e2e/            puppeteer browser flows (run via ghcr.io/puppeteer/puppeteer)
 sunbird-rc/     custom docker-compose override + db-init for Sunbird RC v2.0.1
 verifiably-go/  the files changed in the centre-for-dpi/verifiably fork (drop in at same paths)
+infra/          deploy artifacts — Caddyfile, registries/ (agency registries), inji-verify/, waltid-schemas/
+user-journey.md operational runbook + per-use-case flows (step → DPG → host endpoint)
 ```
 
 ## verifiably-go changes — `private_key_jwt` support
@@ -59,6 +61,29 @@ Custom override for Sunbird-RC v2.0.1 full quickstart: published `ghcr.io:v2.0.1
 images, `postgres:14`, `cp-kafka`/`cp-zookeeper` pinned `7.5.0`, and dedicated DBs
 (`identity`/`credential_schema`/`credential`) for the Node V2 services via
 `db-init/01-create-databases.sql`. Requires `POSTGRES_PASSWORD=postgres`.
+
+## infra/registries/ — federated agency registries
+
+Per-agency **sources of truth**, each a standalone FastAPI service (its own SQLite
+store, admin UI, and auto-generated OpenAPI). They model the SAR doc's "existing
+national systems" as separate hosts and provide the **data-exchange-without-VCs**
+path — a relying party confirms a fact by querying the owning registry's API
+directly, an alternative to an OID4VP presentation:
+
+| Host | Authority | Entity |
+|---|---|---|
+| `dad.registry.in-labs.cdpi.dev` | Dept of Agrarian Development | `cultivators` |
+| `grama-niladhari.registry.in-labs.cdpi.dev` | e-Grama Niladhari | `attestations` |
+| `business.registry.in-labs.cdpi.dev` | Divisional Secretariat | `businesses` |
+
+Each serves a **record table + live search + add-record form at `/`** (like the
+Sunbird admin), **Swagger at `/docs`** (+ `/redoc`), the API
+(`GET /<entity>` with `?q=` search, `GET /<entity>/{key}`, `POST /<entity>`), and a
+**VC-issuance export** `GET /<entity>/issuance` that reshapes rows to a credential's
+schema field names so verifiably's bulk **API source** can fan out one credential
+per row. One generic config-driven app (`registry_app.py`) + a per-agency
+`<agency>.json`; built as `cdpi-registry:local`, brought up by `docker-compose.yml`
+on the `waltid_default` network. DNS: wildcard `*.registry.in-labs.cdpi.dev`.
 
 ## e2e/
 
