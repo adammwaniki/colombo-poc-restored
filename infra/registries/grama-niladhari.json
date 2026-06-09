@@ -3,6 +3,7 @@
   "authority": "Ministry of Home Affairs — Grama Niladhari / Divisional Secretariats",
   "home": "https://www.moha.gov.lk/",
   "server": "https://grama-niladhari.registry.in-labs.cdpi.dev",
+  "svc": "gn-registry",
   "description": "Authoritative register of Grama Niladhari address attestations — the source of truth for the GN **address proof** used in the business-permit use case.\n\nThe physical in-person address check stays manual; its outcome is recorded here. A relying party confirms a verified address by querying this API directly — **no verifiable credential required**.",
   "entity": "attestations",
   "entity_desc": "Grama Niladhari address attestations.",
@@ -17,6 +18,16 @@
     {"name": "verifiedOn", "type": "string", "description": "Date verified (YYYY-MM-DD)", "example": "2026-06-01"},
     {"name": "verifiedBy", "type": "string", "description": "Attesting Grama Niladhari officer", "example": "GN Officer, Colombo"}
   ],
+  "issuance": {
+    "credential": "AddressProofCredential",
+    "map": {
+      "holder": "fullName",
+      "nationalId": "nationalId",
+      "address": "address",
+      "gnDivision": "gnDivision",
+      "verifiedOn": "verifiedOn"
+    }
+  },
   "seed": [
     {"nationalId": "80000001", "fullName": "Nuwan Bandara", "address": "Colombo, Sri Lanka", "gnDivision": "Colombo GN Division", "attestationId": "GN-2026-0001", "verifiedOn": "2026-06-01", "verifiedBy": "GN Officer, Colombo"},
     {"nationalId": "80000002", "fullName": "Nimali Perera", "address": "Gampaha, Sri Lanka", "gnDivision": "Gampaha GN Division", "attestationId": "GN-2026-0002", "verifiedOn": "2026-06-02", "verifiedBy": "GN Officer, Gampaha"}

@@ -22,6 +22,7 @@ DB = os.environ.get("DB_PATH", "/data/registry.db")
 ENTITY = CFG["entity"]          # url segment, e.g. "cultivators"
 KEY = CFG["key"]                # primary key field, e.g. "nationalId"
 FIELDS = CFG["fields"]
+ISS = CFG.get("issuance")       # optional VC-issuance projection (see /issuance)
 TYPES = {"string": str, "number": float, "integer": int, "boolean": bool}
 
 conn = sqlite3.connect(DB, check_same_thread=False)
@@ -88,6 +89,25 @@ def list_entity(q: Optional[str] = Query(None, description="substring match acro
         ql = q.lower()
         rows = [r for r in rows if any(ql in str(v).lower() for v in r.values())]
     return rows
+
+
+if ISS:
+    _flt = ISS.get("filter") or {}
+    _fltdesc = (", filtered to " + ", ".join(f"{k}={v}" for k, v in _flt.items())) if _flt else ""
+
+    @app.get(
+        "/" + ENTITY + "/issuance",
+        tags=[ENTITY],
+        summary="VC-issuance export — schema-shaped rows for bulk issuance",
+        description="The same records reshaped to the **" + ISS["credential"] + "** credential's "
+                    "field names" + _fltdesc + ". Point verifiably's bulk **API source** at this URL "
+                    "to fan-out one credential per row. In-cluster URL: "
+                    "`http://" + CFG.get("svc", "<svc>") + ":8000/" + ENTITY + "/issuance`.",
+    )
+    def issuance_export():
+        rows = [r for r in all_records()
+                if all(str(r.get(k, "")).lower() == str(v).lower() for k, v in _flt.items())]
+        return [{sf: r.get(rf, "") for sf, rf in ISS["map"].items()} for r in rows]
 
 
 @app.get(

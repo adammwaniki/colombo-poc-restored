@@ -3,6 +3,7 @@
   "authority": "Department of Agrarian Development (Agrarian.lk / GeoGoviya)",
   "home": "https://www.agrarian.gov.lk/",
   "server": "https://dad.registry.in-labs.cdpi.dev",
+  "svc": "dad-registry",
   "description": "Authoritative register of cultivators and their land parcels — the source of truth for the **fertilizer-subsidy** use case.\n\nThis is a *registry of record*. A relying party (e.g. the subsidy office or the Divisional Secretariat) confirms a farmer's cultivation status and entitlement basis by querying this API directly — an alternative to a verifiable-credential presentation.",
   "entity": "cultivators",
   "entity_desc": "Cultivator and land-parcel records.",
@@ -18,6 +19,19 @@
     {"name": "cultivationStatus", "type": "string", "description": "active | inactive this season", "example": "active"},
     {"name": "registeredOn", "type": "string", "description": "Enrolment date (YYYY-MM-DD)", "example": "2026-06-08"}
   ],
+  "issuance": {
+    "credential": "CultivatorCredential",
+    "filter": {"cultivationStatus": "active"},
+    "map": {
+      "holder": "fullName",
+      "nationalId": "nationalId",
+      "farmId": "farmId",
+      "location": "region",
+      "hectares": "farmSizeHectares",
+      "crops": "primaryCrops",
+      "registeredOn": "registeredOn"
+    }
+  },
   "seed": [
     {"nationalId": "80000006", "fullName": "Fathima Marikar", "farmId": "LK-FARM-0006", "region": "Kurunegala", "farmSizeHectares": 2, "primaryCrops": "Paddy", "cultivationStatus": "active", "registeredOn": "2026-06-08"},
     {"nationalId": "80000010", "fullName": "Sunil Fernando", "farmId": "LK-FARM-0010", "region": "Anuradhapura", "farmSizeHectares": 3, "primaryCrops": "Paddy", "cultivationStatus": "active", "registeredOn": "2026-05-01"}

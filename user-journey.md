@@ -336,16 +336,38 @@ Issuer attribution: *Divisional Secretariat (Business Registration)*. View: `vc_
 
 ---
 
-## Where the DB-source bulk path fits
+## Bulk issuance — DB source or the agency registries
 
-The journeys above are the **interactive, per-person** path (eSignet-authenticated,
-one credential at a time). The **`model-a-sunbird-db-source/`** build is the
-**back-office bulk** path for the **ISSUE** steps in those flows: an officer
-reads the register through verifiably's Database source and issues to every
-eligible citizen in one operation. Same register of record, same walt.id issuer,
-same credential — eligibility is encoded as the view's `WHERE` clause
-(`vc_fertilizer_cultivator`, `vc_fertilizer_voucher`, `vc_business_permit`).
-Proven end-to-end: register row (read least-privilege) → walt.id offer URI.
+The journeys above are the **interactive, per-person** path (one credential at a
+time). The **ISSUE** steps can also run as **back-office bulk** — verifiably reads
+many rows from a source and fans out one credential per row through the same
+walt.id issuer. Two sources:
+
+**1 · DB source** (`model-a-sunbird-db-source/`): verifiably's **Database** bulk
+source runs a `SELECT` against the Sunbird Postgres views (`vc_fertilizer_cultivator`,
+`vc_fertilizer_voucher`, `vc_business_permit`); eligibility is the view's `WHERE`
+clause. Proven end-to-end: register row → walt.id offer URI.
+
+**2 · Agency registries (API source)**: verifiably's **API** bulk source GETs a
+JSON array and maps each object's keys to the schema's fields **by name**. Each
+registry therefore exposes a **VC-issuance export** — `GET /<entity>/issuance` —
+that reshapes its records to the credential's exact field names (and filters to
+the eligible rows, e.g. `cultivationStatus=active`). To bulk-issue:
+
+> Issuer → pick the schema → **Bulk** → **API** source → `api_url` =
+> `http://<svc>:8000/<entity>/issuance` (in-cluster URL; verifiably-go fetches it
+> server-side over `waltid_default`) → Issue. One offer per row.
+
+| Credential | Registry export (`api_url`) | Eligibility filter |
+|---|---|---|
+| `CultivatorCredential` | `http://dad-registry:8000/cultivators/issuance` | `cultivationStatus=active` |
+| `AddressProofCredential` | `http://gn-registry:8000/attestations/issuance` | — |
+| `BusinessPermitCredential` | `http://business-registry:8000/businesses/issuance` | `status=registered` |
+
+Data contract **verified**: each `/issuance` export's keys equal the credential's
+`FieldsSpec` exactly (no field dropped), and verifiably's `fetchJSONRows`
+stringifies numeric values — so the by-name mapping is lossless. (The final
+fan-out is the operator's bulk-issue action in the UI.)
 
 ## Maps to existing national systems
 

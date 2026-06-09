@@ -3,6 +3,7 @@
   "authority": "Divisional Secretariat / Department of the Registrar of Companies (eROC)",
   "home": "https://www.drc.gov.lk/",
   "server": "https://business.registry.in-labs.cdpi.dev",
+  "svc": "business-registry",
   "description": "Authoritative register of registered sole-proprietor business names and permits — the source of truth for the **business-permit** use case.\n\nTwo direct-API (no-VC) uses: search by name (`?q=`) for the **name-uniqueness** check at registration, and fetch by `permitId` for a relying party (e.g. a bank or supplier) to confirm a permit is genuine and active.",
   "entity": "businesses",
   "entity_desc": "Registered business names and permits.",
@@ -12,13 +13,27 @@
     {"name": "permitId", "type": "string", "required": true, "description": "Permit / record identifier", "example": "BP-80000001"},
     {"name": "businessName", "type": "string", "required": true, "description": "Registered business name", "example": "Nuwan Bandara Trading"},
     {"name": "nationalId", "type": "string", "required": true, "description": "Proprietor National ID", "example": "80000001"},
+    {"name": "proprietorName", "type": "string", "description": "Proprietor full name", "example": "Nuwan Bandara"},
     {"name": "businessType", "type": "string", "description": "Business type", "example": "Sole Proprietorship"},
     {"name": "address", "type": "string", "description": "Business address", "example": "Colombo, Sri Lanka"},
     {"name": "status", "type": "string", "description": "registered | pending | revoked", "example": "registered"},
     {"name": "registeredOn", "type": "string", "description": "Registration date (YYYY-MM-DD)", "example": "2026-06-05"}
   ],
+  "issuance": {
+    "credential": "BusinessPermitCredential",
+    "filter": {"status": "registered"},
+    "map": {
+      "holder": "proprietorName",
+      "nationalId": "nationalId",
+      "businessName": "businessName",
+      "businessType": "businessType",
+      "address": "address",
+      "permitId": "permitId",
+      "issuedOn": "registeredOn"
+    }
+  },
   "seed": [
-    {"permitId": "BP-80000001", "businessName": "Nuwan Bandara Trading", "nationalId": "80000001", "businessType": "Sole Proprietorship", "address": "Colombo, Sri Lanka", "status": "registered", "registeredOn": "2026-06-05"},
-    {"permitId": "BP-80000020", "businessName": "Lanka Spice Exports", "nationalId": "80000020", "businessType": "Sole Proprietorship", "address": "Galle, Sri Lanka", "status": "registered", "registeredOn": "2026-04-10"}
+    {"permitId": "BP-80000001", "businessName": "Nuwan Bandara Trading", "nationalId": "80000001", "proprietorName": "Nuwan Bandara", "businessType": "Sole Proprietorship", "address": "Colombo, Sri Lanka", "status": "registered", "registeredOn": "2026-06-05"},
+    {"permitId": "BP-80000020", "businessName": "Lanka Spice Exports", "nationalId": "80000020", "proprietorName": "Anula Silva", "businessType": "Sole Proprietorship", "address": "Galle, Sri Lanka", "status": "registered", "registeredOn": "2026-04-10"}
   ]
 }
