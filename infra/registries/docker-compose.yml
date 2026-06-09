@@ -1,0 +1,52 @@
+# Per-agency registries — physically separate sources of truth, each its own
+# FastAPI service + SQLite store + auto OpenAPI/Swagger at /docs. Attached to the
+# existing waltid_default network so the shared caddy-public reaches them by name
+# (caddy routes <agency>.registry.in-labs.cdpi.dev -> <svc>:8000).
+name: cdpi-registries
+
+services:
+  dad-registry:
+    image: cdpi-registry:local
+    container_name: dad-registry
+    restart: unless-stopped
+    environment:
+      REGISTRY_CONFIG: /cfg/dad.json
+      DB_PATH: /data/registry.db
+    volumes:
+      - ./dad.json:/cfg/dad.json:ro
+      - dad-data:/data
+    networks: [waltid]
+
+  gn-registry:
+    image: cdpi-registry:local
+    container_name: gn-registry
+    restart: unless-stopped
+    environment:
+      REGISTRY_CONFIG: /cfg/grama-niladhari.json
+      DB_PATH: /data/registry.db
+    volumes:
+      - ./grama-niladhari.json:/cfg/grama-niladhari.json:ro
+      - gn-data:/data
+    networks: [waltid]
+
+  business-registry:
+    image: cdpi-registry:local
+    container_name: business-registry
+    restart: unless-stopped
+    environment:
+      REGISTRY_CONFIG: /cfg/business.json
+      DB_PATH: /data/registry.db
+    volumes:
+      - ./business.json:/cfg/business.json:ro
+      - business-data:/data
+    networks: [waltid]
+
+networks:
+  waltid:
+    external: true
+    name: waltid_default
+
+volumes:
+  dad-data:
+  gn-data:
+  business-data:

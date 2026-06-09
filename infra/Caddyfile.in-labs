@@ -92,6 +92,20 @@ signup.in-labs.cdpi.dev {
 	reverse_proxy host.docker.internal:8090
 }
 
+# Per-agency registries — federated sources of truth (FastAPI + OpenAPI/Swagger
+# at /docs, standalone compose at /root/colombo-poc/registries, on waltid_default).
+# Relying parties query these directly for trusted data exchange (no VC), an
+# alternative to the OID4VP presentation flow. DNS: wildcard *.registry.in-labs.cdpi.dev.
+dad.registry.in-labs.cdpi.dev {
+	reverse_proxy dad-registry:8000
+}
+grama-niladhari.registry.in-labs.cdpi.dev {
+	reverse_proxy gn-registry:8000
+}
+business.registry.in-labs.cdpi.dev {
+	reverse_proxy business-registry:8000
+}
+
 # NOTE: no standalone wallet site. The walt.id wallet UI is verifiably-go itself
 # (vc.in-labs.cdpi.dev, the "holder" role) — backends.json wires
 # walletBaseUrl -> wallet-api:7001, and eSignet is already a login tile there.
