@@ -31,17 +31,38 @@ Incognito window per person (stale half-finished logins cause "Auth state mismat
 
 ### Three reusable steps
 
-All three roles are at **`vc.in-labs.cdpi.dev`**; sign in via the **eSignet** tile
-(National ID `80000006` / PIN `100005`).
+All three roles are at **`vc.in-labs.cdpi.dev`**. Pick a role, then sign in via the
+**eSignet** tile (National ID `80000006` / PIN `100005`).
 
-- **ISSUE** → *Issuer* → DPG **Walt Community Stack** → pick the schema → *Enter
-  manually* → fill fields → **Issue credential** → OID4VCI offer (QR + link).
-- **HOLD** → *Holder* → wallet **API-based** → paste/scan the offer → credential lands.
-- **VERIFY** → *Verifier* → *Request a presentation · OID4VP* → pick type + tick
-  fields + keep policies on → **Generate** → open the `openid4vp://…` link in the
-  Holder wallet → **✓ Credential valid**.
+| Landing — pick a role | Sign in — pick an IdP | eSignet — National ID + PIN |
+|---|---|---|
+| ![Landing](e2e-shots/journey/landing.png) | ![Sign in](e2e-shots/journey/auth-tiles.png) | ![eSignet](e2e-shots/journey/esignet-login.png) |
+
+**ISSUE** → *Issuer* → DPG **Walt Community Stack** → pick the schema → fill fields
+(manual, or a bulk source) → **Issue** → OID4VCI offer (QR + link).
+
+| Pick a DPG | Pick a schema | Issue (bulk from a registry API) |
+|---|---|---|
+| ![DPG](e2e-shots/journey/issuer-dpg.png) | ![Schema](e2e-shots/journey/issuer-schema.png) | ![Issue](e2e-shots/journey/issuer-issue.png) |
+
+**HOLD** → *Holder* → wallet **API-based** → paste/scan the offer → credential lands.
+
+![Holder wallet](e2e-shots/journey/holder-wallet.png)
+
+**VERIFY** → *Verifier* → *Request a presentation · OID4VP* → pick type + tick
+fields + keep policies on → **Generate** → open the `openid4vp://…` link in the
+Holder wallet → **✓ Credential valid**.
+
+![Verifier — check a credential](e2e-shots/journey/verifier-verify.png)
 
 The full stepwise flows (mapped to the docx) are in the two use-case sections below.
+
+### Self-registration (citizen onboarding)
+
+A citizen puts themselves on the register with an email code at
+`signup.in-labs.cdpi.dev` (writes a Sunbird `Person`, then usable for eSignet login).
+
+![Self-registration](e2e-shots/journey/signup.png)
 
 ### Alternative track — registry-of-record + Inji Verify (Sunbird-native)
 
@@ -49,6 +70,8 @@ Issue a PDF + QR from `sunbird-rc.in-labs.cdpi.dev/admin/` → **Credentials**, 
 verify by uploading the QR at `inji-verify.in-labs.cdpi.dev`, or have an agency
 trust it by API (`/credentials/{id}/verify`). Use this for the "scan a paper QR" /
 "registry-as-record" story; the walt.id path above is the wallet OID4VCI/OID4VP story.
+
+![Inji Verify — scan result](e2e-shots/inji-verify-result.png)
 
 The detailed design (actors, components, sample schemas, bulk path) follows.
 
@@ -205,6 +228,10 @@ Each exposes a record table + live search + add-record form at the **host root**
 issuance*), `GET /health`, `/docs` (Swagger), `/redoc`. Identity stays with eSignet /
 the National ID anchor; these registries hold the agency-specific facts the
 journeys check. Code: `infra/registries/`.
+
+| Admin UI (host root) — browse / search / add | OpenAPI (Swagger) at `/docs` |
+|---|---|
+| ![Registry admin UI](e2e-shots/registry-admin.png) | ![Registry OpenAPI](e2e-shots/journey/registry-swagger.png) |
 
 ---
 
