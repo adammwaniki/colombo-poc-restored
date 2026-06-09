@@ -103,7 +103,7 @@ The detailed design (actors, components, sample schemas, bulk path) follows.
 | **Authenticate** | **eSignet** | `:3005` (OIDC UI) → eSignet `:8088`. Authenticates a citizen by **National ID + PIN** against the register, via the Authenticator plugin (mock-identity forked to read Sunbird `V_Person`). The live population register is mocked, per the MVP. |
 | **Check record** | **Sunbird RC** | Registry of record (`V_Person`), `:18091`. Read interactively, or in bulk through verifiably's **DB source** (Model A — see `model-a-sunbird-db-source/`). |
 | **Issue** | **walt.id** (via **verifiably**) | OID4VCI **pre-authorized-code**, W3C VCDM / SD-JWT VC. verifiably orchestrates; walt.id signs. UI at `:8080`. |
-| **Hold** | **Credo wallet** (cdpi-wallet) / **Inji Web** | Receives the OID4VCI offer and stores the credential. (Credo holder not yet wired; Inji Web wallet is available in-stack.) |
+| **Hold** | **walt.id wallet** (via verifiably's **Holder** role) | Receives the OID4VCI offer and holds the credential, then presents it on request via OID4VP. The SAR docx names **Credo**; Credo isn't deployed here. Any OID4VCI/OID4VP wallet interoperates — the live demo holds in **CDPI's mobile wallet**. |
 | **Verify** | **walt.id verifier** (via verifiably) | OID4VP presentation, or direct scan/upload/paste. Checks signature, expiry, status-list revocation. |
 
 **Standing choices** (keep the five interoperable): one pinned OID4VCI/OID4VP
@@ -132,7 +132,9 @@ Sample test identity (seeded): National ID `80000006`, PIN `100005`
 
 Three substitutions from the reference architecture, named once here, then assumed:
 - **Wallet** — the docx names **Credo**; this deployment uses the **walt.id wallet**
-  via verifiably's **Holder** role (Credo isn't deployed). "Accept into the wallet" = HOLD.
+  via verifiably's **Holder** role (Credo isn't deployed). **HOLD** is that Holder
+  role: the holder scans the OID4VCI offer into their wallet, holds the credential,
+  and presents it on request. The live demo holds in **CDPI's mobile wallet**.
 - **Attestation workflow & eligibility/validity rules** — in the MVP these are
   **officer actions in the Sunbird admin portal**, not an automated engine.
 - **Business-permit prerequisites** — the docx lists GN certificate + notary
