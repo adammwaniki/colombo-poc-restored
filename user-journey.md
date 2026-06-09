@@ -45,15 +45,25 @@ All three roles are at **`vc.in-labs.cdpi.dev`**. Pick a role, then sign in via 
 |---|---|---|
 | ![DPG](e2e-shots/journey/issuer-dpg.png) | ![Schema](e2e-shots/journey/issuer-schema.png) | ![Issue](e2e-shots/journey/issuer-issue.png) |
 
-**HOLD** → *Holder* → wallet **API-based** → paste/scan the offer → credential lands.
+Filling the subject manually and clicking **Issue credential** produces the
+OID4VCI offer — a QR plus an `openid-credential-offer://` link for the holder's
+wallet:
 
-![Holder wallet](e2e-shots/journey/holder-wallet.png)
+![Credential offer generated — QR + offer link](e2e-shots/journey/offer-qr.png)
+
+**HOLD** → *Holder* → on a phone, open **CDPI's mobile wallet** → scan the offer
+QR (or paste the `openid-credential-offer://` link) → review → **Accept** → the
+credential lands in the wallet.
+
+> _Wallet-side screenshots (CDPI mobile wallet: scan → review → held) — added by the operator._
 
 **VERIFY** → *Verifier* → *Request a presentation · OID4VP* → pick type + tick
-fields + keep policies on → **Generate** → open the `openid4vp://…` link in the
-Holder wallet → **✓ Credential valid**.
+fields + keep policies on → **Generate** → scan/open the `openid4vp://…` request
+in the CDPI mobile wallet → pick the held credential → submit → **✓ Credential valid**.
 
-![Verifier — check a credential](e2e-shots/journey/verifier-verify.png)
+![Verifier — request a presentation](e2e-shots/journey/verifier-verify.png)
+
+> _Wallet-side presentation + the **✓ Credential valid** result — added by the operator._
 
 The full stepwise flows (mapped to the docx) are in the two use-case sections below.
 
@@ -70,6 +80,15 @@ Issue a PDF + QR from `sunbird-rc.in-labs.cdpi.dev/admin/` → **Credentials**, 
 verify by uploading the QR at `inji-verify.in-labs.cdpi.dev`, or have an agency
 trust it by API (`/credentials/{id}/verify`). Use this for the "scan a paper QR" /
 "registry-as-record" story; the walt.id path above is the wallet OID4VCI/OID4VP story.
+
+The admin portal lists the `Person` register; **Credentials** on a row issues a
+Sunbird-native verifiable straight from the record (PDF + QR, or JSON):
+
+| Registry admin — Person register | Issue from the record (PDF + QR / JSON) |
+|---|---|
+| ![Sunbird admin — Person register](e2e-shots/journey/sunbird-admin.png) | ![Sunbird — issue credential](e2e-shots/journey/sunbird-credentials.png) |
+
+The issued QR verifies at `inji-verify.in-labs.cdpi.dev`:
 
 ![Inji Verify — scan result](e2e-shots/inji-verify-result.png)
 
