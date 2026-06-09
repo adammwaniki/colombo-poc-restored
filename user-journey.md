@@ -100,8 +100,17 @@ Three substitutions from the reference architecture, named once here, then assum
   deed/lease until a `DeedOrLease` schema is added.
 
 Each step's **how-to** (the exact clicks) is the ISSUE / HOLD / VERIFY procedure in
-the runbook above. Host shorthand: **vc** = `vc.in-labs.cdpi.dev`, **sunbird** =
-`sunbird-rc.in-labs.cdpi.dev/admin/`, **signup** = `signup.in-labs.cdpi.dev`.
+the runbook above. Host shorthand — **vc** = `vc.in-labs.cdpi.dev`, **sunbird** =
+`sunbird-rc.in-labs.cdpi.dev/admin/` (identity / Person register), **signup** =
+`signup.in-labs.cdpi.dev`; and the **federated agency registries** (each a source
+of truth with its own OpenAPI at `/docs`): **dad** = `dad.registry.in-labs.cdpi.dev`
+(cultivator/land), **gn** = `grama-niladhari.registry.in-labs.cdpi.dev` (address
+attestation), **biz** = `business.registry.in-labs.cdpi.dev` (business-name register).
+
+**Two ways to exchange trusted data** — every "check the record" step below can be
+done as a **direct API call to the owning registry** (registry-as-record, *no VC* —
+e.g. `GET dad.registry…/cultivators/80000006`) **or** as a **VC presentation**
+(OID4VP at **vc** → *Verifier*). The flows name both.
 
 ---
 
@@ -117,8 +126,8 @@ credential** (no payment leg). Two flows: a one-time **enrolment** →
 | # | Step (docx) | DPG · interface | Host endpoint · what to do |
 |---|-------------|-----------------|----------------------------|
 | 1 | Farmer authenticates with the National ID Card | **eSignet** · OAuth2/OIDC | **vc** → sign in via the **eSignet** tile (NID `80000006` / PIN `100005`) |
-| 2 | Land inspection & rights check (physical) recorded as an attestation | **Sunbird RC** · attestation | **sunbird** → open the farmer's record, note the inspection outcome |
-| 3 | Cultivator entry written to the land register (`isCultivator`, `farmId`, `farmSizeHectares`, `primaryCrops`, `region`) | **Sunbird RC** · registry | **sunbird** (officer) — or the farmer self-registers at **signup** |
+| 2 | Land inspection & rights check (physical) recorded as an attestation | **DAD registry** (Agrarian) | **dad** → record the cultivation-rights attestation on the farmer's record |
+| 3 | Cultivator entry written to the land register (`farmId`, `farmSizeHectares`, `primaryCrops`, `region`, `cultivationStatus`) | **DAD registry** (Agrarian) | **dad** → `POST /cultivators` (the identity Person stays at **sunbird** / **signup**) |
 | 4 | `CultivatorCredential` issued (OID4VCI) and accepted into the wallet | **walt.id issuer → wallet** | **ISSUE** at **vc** → *Issuer*; **HOLD** at **vc** → *Holder* |
 
 **Outcome:** the farmer is on the register as a cultivator and holds the
@@ -129,8 +138,8 @@ credential** (no payment leg). Two flows: a one-time **enrolment** →
 | # | Step (docx) | DPG · interface | Host endpoint · what to do |
 |---|-------------|-----------------|----------------------------|
 | 1 | Farmer authenticates with the National ID Card | **eSignet** · OAuth2/OIDC | **vc** → **eSignet** tile |
-| 2 | Cultivator & land record verified — incl. active cultivation this season | **Sunbird RC** + **walt.id verifier** | check the record at **sunbird**; and/or **VERIFY** the `CultivatorCredential` at **vc** → *Verifier* |
-| 3 | Eligibility & entitlement checked — paddy crop, active cultivation, per-farmer hectare cap; amount by land area | **rules check on the register** (officer, MVP) | **sunbird** — confirm eligibility; `entitlementKg` derived from hectares |
+| 2 | Cultivator & land record verified — incl. active cultivation this season | **DAD registry** *or* **walt.id verifier** | API: `GET dad…/cultivators/{nationalId}`; **or** VC: **VERIFY** the `CultivatorCredential` at **vc** → *Verifier* |
+| 3 | Eligibility & entitlement checked — paddy crop, active cultivation, per-farmer hectare cap; amount by land area | **rules check on the DAD registry** (officer, MVP) | **dad** — read `cultivationStatus` / `farmSizeHectares`; `entitlementKg` derived from hectares |
 | 4 | `FertilizerVoucher` e-voucher issued (OID4VCI pre-auth) and accepted | **walt.id issuer → wallet** | **ISSUE** at **vc** → *Issuer*; **HOLD** → *Holder* |
 | 5 | Voucher presented & verified at the Agrarian Service Centre on redemption | **walt.id verifier** · OID4VP | **VERIFY** at **vc** → *Verifier* (depot checks signature, validity, status) |
 
@@ -152,7 +161,7 @@ becomes a credential.
 | # | Step (docx) | DPG · interface | Host endpoint · what to do |
 |---|-------------|-----------------|----------------------------|
 | 1 | Applicant authenticates with the National ID Card | **eSignet** · OAuth2/OIDC | **vc** → **eSignet** tile |
-| 2 | Grama Niladhari address verification (physical); certificate issued as a credential & accepted | **walt.id issuer → wallet** | **ISSUE** `AddressProofCredential` (the GN certificate) at **vc** → *Issuer*; **HOLD** → *Holder* |
+| 2 | Grama Niladhari address verification (physical) recorded, then certificate issued as a credential & accepted | **GN registry** → **walt.id issuer → wallet** | record at **gn** (`POST /attestations`); then **ISSUE** `AddressProofCredential` at **vc** → *Issuer*; **HOLD** → *Holder* |
 | 3 | Notary-certified deed or lease issued as a credential (proof of business address) & accepted | **walt.id issuer → wallet** | **ISSUE** the deed/lease credential † at **vc** → *Issuer*; **HOLD** → *Holder* |
 | 4 | Sector approval issued as a credential — if the trade is regulated — & accepted | **walt.id issuer → wallet** | **ISSUE** `SectorApprovalCredential` at **vc** → *Issuer*; **HOLD** → *Holder* |
 
@@ -165,13 +174,33 @@ becomes a credential.
 | # | Step (docx) | DPG · interface | Host endpoint · what to do |
 |---|-------------|-----------------|----------------------------|
 | 1 | Applicant authenticates with the National ID Card | **eSignet** · OAuth2/OIDC | **vc** → **eSignet** tile |
-| 2 | Business-name uniqueness checked | **Sunbird RC** · registry | **sunbird** — search the business-name register |
+| 2 | Business-name uniqueness checked | **Business registry** (Divisional Secretariat) | **biz** — `GET /businesses?q=<name>` (no match = available) |
 | 3 | Application validity checked — required credentials present & valid (GN certificate, deed, affidavit; sector approval if regulated) | **completeness check** (officer, MVP) | confirm the applicant holds the prerequisites from Flow A |
 | 4 | Credentials presented to the Divisional Secretary & verified | **walt.id verifier** · OID4VP | **VERIFY** at **vc** → *Verifier* — request a presentation; applicant presents from the *Holder* wallet |
-| 5 | `BusinessPermitCredential` issued and the register updated | **walt.id issuer + Sunbird RC** | **ISSUE** at **vc** → *Issuer*; **HOLD** → *Holder*; record the business at **sunbird** |
+| 5 | `BusinessPermitCredential` issued and the register updated | **walt.id issuer + Business registry** | **ISSUE** at **vc** → *Issuer*; **HOLD** → *Holder*; record the business at **biz** (`POST /businesses`) |
 
 **Outcome:** the business is on the register and the proprietor holds a verifiable
 permit, presentable to banks, suppliers, and authorities.
+
+---
+
+## Federated registries — sources of truth + per-registry OpenAPI
+
+Each authority runs its **own** registry (a standalone service, its own store, and
+OpenAPI/Swagger at `/docs`). This is the **data-exchange-without-VCs** path: a
+relying party confirms a fact by querying the owning registry directly — an
+alternative to an OID4VP presentation. (DNS: wildcard `*.registry.in-labs.cdpi.dev`.)
+
+| Registry host | Authority | Holds | Docs | Example no-VC call |
+|---|---|---|---|---|
+| `dad.registry…` | Dept of Agrarian Development | cultivator / land records | `…/docs` | `GET /cultivators/80000006` → cultivation status |
+| `grama-niladhari.registry…` | e-Grama Niladhari | address attestations | `…/docs` | `GET /attestations/80000001` → verified address |
+| `business.registry…` | Divisional Secretariat | business-name register | `…/docs` | `GET /businesses?q=<name>` (uniqueness) · `GET /businesses/BP-80000001` (permit) |
+
+Each exposes `GET /<entity>` (list + `?q=` search), `GET /<entity>/{key}`
+(authoritative lookup), `POST /<entity>` (write), `GET /health`. Identity stays
+with eSignet / the National ID anchor; these registries hold the agency-specific
+facts the journeys check. Code: `infra/registries/`.
 
 ---
 
