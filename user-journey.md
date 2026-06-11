@@ -433,3 +433,41 @@ records; walt.id adds the portable, verifiable credential layer on top.
 > move from e-voucher to cash transfer; both journeys can add identity, credential
 > lifecycle (revocation/renewal), offline presentation, consent, and verifier
 > choice (CREDEBL) — each additive, attaching at seams the MVP already exposes.
+
+---
+
+## All endpoints
+
+All 12 public hosts are each their own Caddy site on `in-labs.cdpi.dev`, fronted by
+the `caddy-public` reverse proxy. Grouped by who touches them:
+
+### Front-door apps (used directly by people)
+| Host | Purpose |
+|---|---|
+| **`vc.in-labs.cdpi.dev`** | **verifiably** — the Issuer / Holder / Verifier UI; orchestrates walt.id for OID4VCI issuance + OID4VP verification |
+| `signup.in-labs.cdpi.dev` | Self-registration — email-OTP onboarding that writes a Sunbird `Person` record |
+| `sunbird-rc.in-labs.cdpi.dev` | Sunbird RC admin portal (`/admin/`) — the `Person` register of record + Sunbird-native PDF+QR issuance |
+| `inji-verify.in-labs.cdpi.dev` | Inji Verify — scan/upload a credential QR to verify it |
+
+### Identity providers (login tiles on verifiably)
+| Host | Purpose |
+|---|---|
+| `esignet.in-labs.cdpi.dev` | eSignet OIDC — National ID + PIN login (the primary auth tile; `private_key_jwt`) |
+| `keycloak.in-labs.cdpi.dev` | Keycloak — alternative IdP login tile |
+| `wso2.in-labs.cdpi.dev` | WSO2 Identity Server — alternative IdP login tile |
+
+### Agency registries (federated sources of truth — each its own OpenAPI/Swagger at `/docs`)
+| Host | Purpose |
+|---|---|
+| `dad.registry.in-labs.cdpi.dev` | Dept of Agrarian Development — cultivator & land registry (fertilizer-subsidy source of truth) |
+| `grama-niladhari.registry.in-labs.cdpi.dev` | e-Grama Niladhari — address-attestation registry (business-permit address proof) |
+| `business.registry.in-labs.cdpi.dev` | Divisional Secretariat — business-name & permit registry |
+
+### Backend service APIs (publicly reachable, but not visited by hand)
+| Host | Purpose |
+|---|---|
+| `walt-issuer.in-labs.cdpi.dev` | walt.id issuer-api — signs credentials; serves OID4VCI offers + issuer metadata |
+| `walt-verifier.in-labs.cdpi.dev` | walt.id verifier-api — OID4VP presentation requests + signature/status verification |
+
+All are HTTPS. The first 10 are the ones a person actually clicks; the last two are
+machine-to-machine (the wallet/verifier talk to them under the hood).
