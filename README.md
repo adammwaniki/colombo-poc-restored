@@ -18,10 +18,20 @@ business-permit, pinned to OID4VCI/OID4VP + HAIP (SD-JWT VC / ES256).
 scripts/        one-shot Python helpers (stdlib only)
 e2e/            puppeteer browser flows (run via ghcr.io/puppeteer/puppeteer)
 sunbird-rc/     custom docker-compose override + db-init for Sunbird RC v2.0.1
-verifiably-go/  the files changed in the centre-for-dpi/verifiably fork (drop in at same paths)
+verifiably-go/  the hand-edited source/template files in the centre-for-dpi/verifiably fork (drop-ins)
+verifiably-clone-vps.patch  authoritative diff of ALL our changes vs upstream 6b820dd
 infra/          deploy artifacts — Caddyfile, registries/ (agency registries), inji-verify/, waltid-schemas/
+infra/REBUILD.md  ⭐ from-scratch rebuild runbook (current state — start here to redeploy)
 user-journey.md operational runbook + per-use-case flows (step → DPG → host endpoint)
 ```
+
+> **Rebuilding from a clean box?** Read **`infra/REBUILD.md`** — it pins the upstream
+> verifiably commit (`6b820dd`), explains how to apply `verifiably-clone-vps.patch`, and
+> walks the full bring-up (verifiably + eSignet + Sunbird + registries + signup + Inji
+> Verify) with the secrets checklist. The `verifiably-go/` tree holds the source/template
+> edits as readable drop-ins; `verifiably-clone-vps.patch` is the complete authoritative
+> set (it also covers the compose/Caddyfile/catalog/config files too bulky to mirror as
+> full files). Redacted env templates: `verifiably-go/.env.example`, `scripts/signup.env.example`.
 
 ## verifiably-go changes — `private_key_jwt` support
 
