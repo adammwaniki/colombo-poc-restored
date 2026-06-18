@@ -9,8 +9,9 @@ business-permit, pinned to OID4VCI/OID4VP + HAIP (SD-JWT VC / ES256).
 > (rooted host running an SSH worm; foreign immutable SSH key; OOM). These are the
 > hand-written source artifacts salvaged off it **before the wipe** — reviewed
 > line-by-line, confirmed untampered (all mtimes predate the intrusion), with **no
-> secrets** (every `.env`/`.pem`/key is gitignored). The full deployment recipe,
-> gotchas, and rebuild plan live in the Claude memory notes; this repo is the code.
+> secrets** (every `.env`/`.pem`/key is gitignored). The full **from-scratch rebuild
+> runbook is now in [`infra/REBUILD.md`](infra/REBUILD.md)** (see the TL;DR below);
+> deeper gotchas live in the Claude memory notes.
 
 ## Layout
 
@@ -25,13 +26,19 @@ infra/REBUILD.md  ⭐ from-scratch rebuild runbook (current state — start here
 user-journey.md operational runbook + per-use-case flows (step → DPG → host endpoint)
 ```
 
-> **Rebuilding from a clean box?** Read **`infra/REBUILD.md`** — it pins the upstream
-> verifiably commit (`6b820dd`), explains how to apply `verifiably-clone-vps.patch`, and
-> walks the full bring-up (verifiably + eSignet + Sunbird + registries + signup + Inji
-> Verify) with the secrets checklist. The `verifiably-go/` tree holds the source/template
-> edits as readable drop-ins; `verifiably-clone-vps.patch` is the complete authoritative
-> set (it also covers the compose/Caddyfile/catalog/config files too bulky to mirror as
-> full files). Redacted env templates: `verifiably-go/.env.example`, `scripts/signup.env.example`.
+> **Rebuilding from a clean box (after a total docker nuke)?** Clone this repo and
+> follow **[`infra/REBUILD.md`](infra/REBUILD.md)** top to bottom — the only things *you*
+> supply are **secrets** (fill the redacted `*.env.example` templates + the REBUILD §7
+> checklist; regenerate the eSignet client key) and a **DNS repoint**
+> (`*.in-labs.cdpi.dev` → the new box; the zone isn't ours). Everything else is in-tree.
+>
+> REBUILD.md pins the upstream verifiably commit (`6b820dd`), applies
+> `verifiably-clone-vps.patch`, and walks the full bring-up (verifiably + eSignet +
+> Sunbird + registries + signup + Inji Verify). The `verifiably-go/` tree holds the
+> source/template edits as readable drop-ins; `verifiably-clone-vps.patch` is the complete
+> authoritative set (it also covers the compose/Caddyfile/catalog/config files too bulky
+> to mirror as full files). Redacted env templates: `verifiably-go/.env.example`,
+> `scripts/signup.env.example`.
 
 ## verifiably-go changes — `private_key_jwt` support
 
