@@ -69,9 +69,24 @@ The patch touches 21 files (see its header). Highlights:
 - `internal/auth/oidc/oidc.go` etc. — **private_key_jwt** for eSignet (RS256
   client_assertion; `aud` follows `publicIssuerUrl`).
 - `deploy/compose/stack/docker-compose.yml` — **caddy-public network aliases**
-  `vc` / `walt-issuer` / `walt-verifier`.`in-labs.cdpi.dev` so in-cluster clients
-  (status-list checks, the holder wallet claiming offers) resolve the public hostnames
-  to the proxy internally instead of hairpinning the host's blocked :443.
+  (`inji-certify-preauth` / `inji-certify-authcode` / `esignet` / `walt-issuer` /
+  `walt-verifier` / `walt-wallet`.`in-labs.cdpi.dev`) so in-cluster clients (status-list
+  checks, the holder wallet claiming offers, **inji-verify-service resolving a claimed
+  VC's did:web issuer**) resolve the public hostnames to the proxy internally instead of
+  hairpinning the host's blocked :443. **`inji-certify-authcode.<domain>` is required** —
+  without it, wallet-claimed (auth-code) VCs verify **INVALID** in Inji Verify with
+  `DidWebPublicKeyResolver: Connection timeout` (the verifier can't fetch the issuer's
+  `/.well-known/did.json`). Add any new public FQDN an internal container calls to this
+  alias list.
+- **Auth-code issuer DID = the deploy host DID.** New auth-code credentials must sign under
+  `did:web:inji-certify-authcode.<domain>` (certify's `CERTIFY_ISSUER_DID`), NOT the
+  docker-internal `did:web:certify-nginx`. `verifiably-go` derives the per-credential
+  `did_url` live from certify's own did.json `id` at schema-create time
+  (`certifyIssuerDID` → `ApplyAuthcodeSchema`), so a claimed VC's `proof.verificationMethod`
+  matches its `issuer` and resolves publicly. If old rows still show `certify-nginx`, run
+  `UPDATE certify.credential_config SET did_url='did:web:inji-certify-authcode.<domain>'
+  WHERE did_url='did:web:certify-nginx';` in the `inji_certify` DB, then
+  `docker restart inji-certify`.
 - `deploy/compose/stack/Caddyfile.public` — the per-subdomain TLS site blocks.
 - `deploy/k8s/config/issuer/credential-issuer-metadata.baseline.conf` — the walt.id
   catalog **pre-seeded with the 6 custom schemas** (Cultivator/FertilizerVoucher/
@@ -243,6 +258,29 @@ Sunbird-native PDF+QR (PixelPass) — the "registry-as-record / scan a paper QR"
 - Smoke: issue a CultivatorCredential → card shows holder + subject + search works;
   holder wallet claims an offer (no ConnectTimeout); schema Save restarts issuer-api;
   signup emails a code to a non-owner address.
+- **Auth-code loop:** create a schema in the issuer UI → it appears in `/holder/wallet/inji`
+  → claim via eSignet → **Download PDF** from the wallet → upload the QR to
+  `inji-verify-ui.in-labs.cdpi.dev` → **verificationStatus SUCCESS** (needs the
+  `inji-certify-authcode` caddy alias + host-DID `did_url` above).
+
+---
+
+## 9. Reset the auth-code catalog (fresh issuance test)
+
+To wipe every credential from the Inji auth-code catalog (`/holder/wallet/inji`) back to an
+empty, pristine state — e.g. to demo issuance from scratch — run on the box:
+
+```bash
+cd /root/verifiably/verifiably-go
+./scripts/reset-authcode-catalog.sh            # prompts; add --yes to skip
+```
+
+It deletes all `certify.credential_config` + `vc_credential_owner` rows, drops the per-cred
+`certify.vc_subject_*` extraction views, restores the two scope `.properties` files to their
+committed baseline (only `mock_identity_vc_ldp`), and restarts `inji-certify` +
+`injiweb-esignet`. It deliberately **keeps** the base data table `certify.vc_subject`,
+`certify.identity_registry` (enrolled identities), and every non-scope property. Idempotent.
+After it runs, build a schema in the issuer UI to repopulate the catalog.
 
 ---
 
