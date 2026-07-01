@@ -87,6 +87,20 @@ The patch touches 21 files (see its header). Highlights:
   `UPDATE certify.credential_config SET did_url='did:web:inji-certify-authcode.<domain>'
   WHERE did_url='did:web:certify-nginx';` in the `inji_certify` DB, then
   `docker restart inji-certify`.
+- **Auth-code is its own PUBLIC issuer** (`mosip_certify_domain_url=https://inji-certify-authcode.<domain>`,
+  from `AUTHCODE_PUBLIC_URL` derived in `deploy.sh`, like the pre-auth instance). This makes the
+  VC's `credential_issuer` + `credentialStatus`/`statusListCredential` URLs public/resolvable
+  (else external verifiers + Inji Verify's status check fail). **Gotcha:** `domain_url` also
+  drives `mosip.certify.authn.allowed-audiences` (the `aud` certify requires in the eSignet
+  access token), but eSignet issues that token with the INTERNAL aud — so a public `domain_url`
+  alone 401s every claim. `certify-default.properties` reads `${AUTHCODE_ALLOWED_AUD:…}`; the
+  compose sets **`AUTHCODE_ALLOWED_AUD=http://certify-nginx:80/v1/certify/issuance/credential`**
+  on the auth-code instance only (pre-auth keeps the `${domain.url}` default). A fresh build is
+  public from the start; a box carried over from the internal-`domain_url` era also needs the
+  **status-list credential regenerated** (it was signed with the old DID): clear
+  `certify.credential_status_transaction` / `status_list_available_indices` /
+  `status_list_credential` / `ledger`, `docker restart inji-certify`, then re-claim → certify
+  re-mints a public-DID status list.
 - `deploy/compose/stack/Caddyfile.public` — the per-subdomain TLS site blocks.
 - `deploy/k8s/config/issuer/credential-issuer-metadata.baseline.conf` — the walt.id
   catalog **pre-seeded with the 6 custom schemas** (Cultivator/FertilizerVoucher/
